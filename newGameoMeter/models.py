@@ -11,6 +11,42 @@ import pandas as pd
 
 # Create your models here.
 
+
+class GameScores(models.Model):
+  '''
+  Stores the fake Tomatometer information for each game, as
+  well as an ID that will be used to refer to info about the game.
+  '''
+  id_number = models.IntegerField(blank=False)
+  title = models.TextField(blank=False)
+  mock_mc = models.FloatField(blank=True)
+  all_percent = models.FloatField(blank=True)
+  all_rating = models.TextField(blank=True)
+  tc_percent = models.FloatField(blank=True)
+  tc_rating = models.TextField(blank=True)
+  user_percent = models.FloatField(blank=True)
+  user_rating = models.TextField(blank=True)
+  critics_consensus = models.TextField(blank=True, null=True, max_length=100000)
+
+  # numbers to determine symbol for accompanying ratings.
+  all_symbol = models.FloatField(blank=True)
+  tc_symbol = models.FloatField(blank=True)
+  user_symbol = models.FloatField(blank=True)
+
+  def __str__(self):
+    return f'The video game {self.title} is score-ready with ID {self.id_number}.'
+  
+class MetaBars(models.Model):
+  """
+  Stores the information for the Metascores that will be used to create color bars
+  representing the metascores.
+  """
+  id_number = models.IntegerField(blank=False)
+  score_list = models.JSONField(blank=False)
+
+def __str__(self):
+  return f'The id number {self.id_number} has a list of metascores {self.score_list}.'
+
 class ReviewInfo(models.Model):
   '''
   Stores the information for each individual game review, identified using the 
