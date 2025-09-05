@@ -44,8 +44,31 @@ class MetaBars(models.Model):
   id_number = models.IntegerField(blank=False)
   score_list = models.JSONField(blank=False)
 
-def __str__(self):
-  return f'The id number {self.id_number} has a list of metascores {self.score_list}.'
+  def __str__(self):
+    return f'The id number {self.id_number} has a list of metascores {self.score_list}.'
+
+class GameInfo(models.Model):
+  '''
+  Stores the Rawg Information for each game, as well as an ID that will be 
+  used to refer to info about the game.
+  '''
+  id_number = models.IntegerField(blank=False)
+  slug = models.TextField(blank=False)
+  name = models.TextField(blank=False)
+  release_date = models.DateField(blank=True)
+  tba = models.BooleanField(blank=True)
+  website = models.URLField(blank=True)
+  platforms = models.TextField(blank=True)
+  developers = models.TextField(blank=True)
+  genres = models.TextField(blank=True)
+  publishers = models.TextField(blank=True)
+  esrb_rating = models.TextField(blank=True)
+  poster_link = models.URLField(blank=True)
+  critics_score = models.TextField(blank=True, null=True)
+
+  def __str__(self):
+    return f'The video game {self.name} has been added with ID number {self.id_number}.'
+
 
 class ReviewInfo(models.Model):
   '''
