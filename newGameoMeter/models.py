@@ -52,22 +52,77 @@ class GameInfo(models.Model):
   Stores the Rawg Information for each game, as well as an ID that will be 
   used to refer to info about the game.
   '''
-  id_number = models.IntegerField(blank=False)
-  slug = models.TextField(blank=False)
-  name = models.TextField(blank=False)
-  release_date = models.DateField(blank=True)
-  tba = models.BooleanField(blank=True)
-  website = models.URLField(blank=True)
-  platforms = models.TextField(blank=True)
-  developers = models.TextField(blank=True)
-  genres = models.TextField(blank=True)
-  publishers = models.TextField(blank=True)
-  esrb_rating = models.TextField(blank=True)
-  poster_link = models.URLField(blank=True)
+  id_number = models.IntegerField(blank=True, null=True)
+  slug = models.TextField(blank=False, null=True)
+  name = models.TextField(blank=True, null=True)
+  release_date = models.DateField(blank=True, null=True)
+  tba = models.BooleanField(blank=True, null=True)
+  website = models.URLField(blank=True, null=True)
+  platforms = models.TextField(blank=True, null=True)
+  developers = models.TextField(blank=True, null=True)
+  genres = models.TextField(blank=True, null=True)
+  publishers = models.TextField(blank=True, null=True)
+  esrb_rating = models.TextField(blank=True, null=True)
+  poster_link = models.URLField(blank=True, null=True)
   critics_score = models.TextField(blank=True, null=True)
 
   def __str__(self):
     return f'The video game {self.name} has been added with ID number {self.id_number}.'
+
+def load_scraped_game_info():
+  '''
+  Load the video game information from a CSV file.
+  '''
+
+  # delete all records
+  #GameInfo.objects.all().delete()
+
+  # open the file for reading one line at a time
+  filename = '/Users/DBeye/django_game/media/game_info.csv'
+  # open the file for reading
+  f = open(filename, encoding="utf8") 
+  # discard the first line containing headers
+  headers = f.readline()
+
+  GameInfo.objects.all().delete()
+
+  # go through the entire file one line at a time
+  for line in f:
+    
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+
+      bool = False
+      if fields[4] == "TRUE":
+        bool = True
+
+      age_rating = 'RP'
+      if fields[10] != '\n':
+        age_rating = fields[10]
+
+      #GameInfo.objects.filter(id_number=fields[0]).delete()
+    
+
+      #create an instance of the GameInfo object
+      result = GameInfo(
+        id_number = fields[0],
+        slug = fields[1],
+        name = fields[2],
+        release_date = fields[3],
+        tba = bool,
+        website = fields[5],
+        platforms = fields[6],
+        developers = fields[7],
+        genres = fields[8],
+        publishers = fields[9],
+        esrb_rating = age_rating,
+      )
+      result.save()
+    except:
+      print(f"EXCEPTION OCCURED: {fields}.")
+
+  print("Done.") 
 
 
 class ReviewInfo(models.Model):
@@ -89,6 +144,7 @@ class ReviewInfo(models.Model):
 
   def __str__(self):
     return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten}.'
+
 
 def load_reviews():
 
@@ -134,18 +190,13 @@ def load_reviews():
         platform = fields[9], 
         url_link = fields[10],
       )
-      
       review.save()
-      """
-      
-      """
 
-      """ 
-      
-      """
       print(f"game {review.id_number} with publication {review.publication} is Done and is {review.fresh_rotten}ly Fresh.")
 
     except IOError as e:
       print(f"EXCEPTION {e} OCCURED: {fields}.")
+    
+
 
     
