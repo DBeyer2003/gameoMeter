@@ -1,0 +1,29 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+{% block content %}
+
+    {% for g in games %}
+        <div>
+            {{g.name}}, {{g.publishers}}, {{g.developers}}, {{g.release_date}}<br>
+        </div>
+    {% endfor %}
+
+    <!--Displays the games across multiple pages; 50 games per page.-->
+    {% if is_paginated %}
+    <div style="margin-top:10px; margin-bottom:10px; margin-left:25px;" class="page">
+        <!--Button to see the previous page of games.-->
+        {% if page_obj.has_previous %}
+            <a style="font-family:cursive;" href="all_games?&page={{ page_obj.previous_page_number }}">Previous</a>
+        {% endif %}
+
+        <!--Button to see the next page of games.-->
+        {% if page_obj.has_next %}
+            <span style="font-family:cursive;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.</span>
+            <a style="font-family:cursive;" href="all_games?&page={{ page_obj.next_page_number }}">Next</a>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+{% endblock %}

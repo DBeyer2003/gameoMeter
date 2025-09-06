@@ -1,0 +1,88 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+{% load my_tags %}
+
+{% block content %}
+
+    <form action="{% url 'search_results' %}">
+        Newest to Oldest: <input type="radio" name="filters" value="newest"><br>
+        Highest Critics Rating: <input type="radio" name="filters" value="highest_critics"><br>
+        Lowest Critics Rating: <input type="radio" name="filters" value="lowest_critics"><br>
+        Highest Audience Rating: <input type="radio" name="filters" value="highest_audience"><br>
+        Lowest Audience Rating: <input type="radio" name="filters" value="lowest_audience"><br>
+
+        <input class type="submit">
+    </form>
+
+    {% for g in games %}
+        <img src="{{g.poster_link}}" width="120px"> 
+        <div>
+            <p><a href="{% url 'game_details' g.pk %}">{{g.name}}</a>, {{g.publishers}}, {{g.developers}}, {{g.release_date}}</p>
+            ID: {{g.id_number}}<br>
+            PK: {{g.pk}}<br>
+
+            {% if g.fake_controlometer %} 
+
+                {% if g.fake_controlometer > 74 %} 
+                    <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+                    {{g.fake_controlometer}}%
+                {% elif g.fake_controlometer >= 60 %}
+                    <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                    {{g.fake_controlometer}}%
+                {% else %}
+                    <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                    {{g.fake_controlometer}}%
+
+                {% endif %}
+
+            {% else %}
+
+                No Critics Score.
+
+            {% endif %}
+
+
+            {% if g.game_scores != None %}
+
+                {% if g.game_scores.user_percent > 59.0 %}
+                    <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
+                {% else %}
+                    <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
+                {% endif %}
+                
+                {{g.game_scores.user_percent}},
+
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <!--Displays limited number of games per page.-->
+    {% if is_paginated %}
+
+    
+    
+    <div style="margin-top:10px; margin-bottom:10px; margin-left:25px;" class="page">
+        <!--link to the game's previous page.-->
+        {% if page_obj.has_previous %}
+            <a style="font-family:cursive;" href="?{% param_replace page=1 %}">First</a>
+            {% if page_obj.previous_page_number != 1 %}
+                <a style="font-family:cursive;" href="?{% param_replace page=page_obj.previous_page_number %}">Previous</a>
+            {% endif %}
+
+        {% endif %}
+
+        <span style="font-family:cursive;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.</span>
+
+        <!--Link to the game's next page.-->
+        {% if page_obj.has_next %}
+            
+            {% if page_obj.next_page_number != paginator.num_pages %}
+                <a style="font-family:cursive;" href="?{% param_replace page=page_obj.next_page_number %}">Next</a>
+            {% endif %}
+            <a style="font-family:cursive;" href="?{% param_replace page=page_obj.paginator.num_pages %}">Last</a>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+{% endblock %}

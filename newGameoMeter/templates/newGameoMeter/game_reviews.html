@@ -1,0 +1,44 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+{% block content %}
+
+<img src="{{game.poster_link}}" width="120px"> <br>
+    {{game.name}}<br><br>
+
+    {% if game.get_reviews == None %}
+        No reviews yet.<br>
+    {% else %}
+        {% for review in game.get_reviews %}
+            {{review.publication}}, {{review.author}}
+
+            {% if review.date_published != "N/A" %}
+                {{review.date_published}}
+            {% endif %}
+            
+            <br>
+            {{review.quote}}<br>
+            
+            {% if review.display_score != "No Score" %}
+                {{review.display_score}}
+            {% endif %}
+            {{review.fresh_rotten}} | 
+            
+            <!--Links to review if available.-->
+            {% if review.url_link %}
+                {% if review.url_link == "" %}
+                    
+                {% else %}
+                    <a href="{{review.url_link}}" target="_blank">Full Review</a>
+                {% endif %}
+            {% endif %}
+            
+            <br>
+            <br>
+        {% endfor %}
+    {% endif %}
+
+{% endblock %}
+
+<script src="{% static 'jsfunc.js' %}"></script>
+{% block script %}{% endblock %}

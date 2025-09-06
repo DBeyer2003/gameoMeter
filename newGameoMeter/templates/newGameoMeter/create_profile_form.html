@@ -1,0 +1,65 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+{% block content %}
+
+    <div class="overseer-three">
+        <h2>Create Profile</h2>
+        <form method="POST"  enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Username:</th>
+                        <th>{{register_form.username}}</th>
+                    </tr>
+
+                    <tr>
+                        <th>Password:</th>
+                        <th>{{register_form.password1}}</th>
+                    </tr>
+
+                    <tr>
+                        <th>Confirm Password:</th>
+                        <th>{{register_form.password2}}</th>
+                    </tr>
+
+                    <tr>
+                        <th >First Name: </th>
+                        <th>{{form.first_name}}</th>
+                    </tr>
+
+                    <tr>
+                        <th>Last Name:</th>
+                        <th>{{form.last_name}}</th>
+                    </tr>
+
+                
+                    <tr>
+                        <th>City:</th>
+                        <th>{{form.city}}</th>
+                    </tr>
+
+                
+                    <tr>
+                        <th>Email Address:</th>
+                        <th>{{form.email_address}}</th>
+                    </tr>
+
+                
+                    <tr>
+                        <th>Profile Image URL:</th>
+                        <th>{{form.profile_image_url}}</th>
+                    </tr>
+                </tbody>
+            </table>
+
+
+            <input type="submit" value="Submit">
+
+        </form>
+
+    </div>
+
+{% endblock %}

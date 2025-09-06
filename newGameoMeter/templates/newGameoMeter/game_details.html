@@ -1,0 +1,89 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+{% block content %}
+
+
+<img src="{{game.poster_link}}" width="120px"> <br>
+    {{game.name}}<br>
+
+    {% if game.game_scores %}
+        <a href="{% url 'update_scores' game.game_scores.pk %}">UPDATE SCORES</a>
+    {% endif %}<br>
+
+    
+    {% if game.fake_controlometer %} 
+
+        {% if game.fake_controlometer > 74 %} 
+            <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+            {{game.fake_controlometer}}%<br>
+            {{game.curved_average}}/10<br>
+            <br>
+        {% elif game.fake_controlometer >= 60 %}
+            <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+            {{game.fake_controlometer}}%<br>
+            {{game.curved_average}}/10<br>
+            <br>
+        {% else %}
+            <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+            {{game.fake_controlometer}}%<br>
+            {{game.curved_average}}/10<br>
+            <br>
+        {% endif %}
+
+    {% else %}
+        No Critics Score.<br>
+    {% endif %}
+
+    {% if game.game_scores %}
+        {% if game.game_scores.user_percent > 59.0 %}
+            <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
+        {% else %}
+            <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
+        {% endif %}
+    
+
+        {{game.game_scores.user_percent}}<br>
+        {{game.game_scores.user_rating}}<br>
+
+    <p id="consensus">Dobby has~~~~ freed his elf!</p>
+    <br>
+
+
+    Critics' Consensus: <p id="consensus">{{game.game_scores.critics_consensus}}</p><br>
+    <br>
+    {% endif %}
+
+
+    
+
+    <br>
+    <br>
+    <br>
+
+    {% if game.meta_bars %}
+        {% for bar in game.meta_bars %}
+            <div class="bars" style="width: 40px; height: {{game.bar_length}}px; background-color: {{bar}};"></div>
+            
+        {% endfor %}
+        {{game.game_scores.mock_mc}}
+    {% endif %}
+    <br>
+
+    PUBLISHER: {{game.publishers}}<br>
+    DEVELOPER: {{game.developeres}}<br>
+    RELEASE DATE: {{game.release_date}}<br>
+    GENRE: {{game.genre}}<br>
+    PLATFORMS: {{game.platforms}}<br>
+
+    {% if game.get_reviews == None %}
+        No reviews yet.
+    {% else %}
+        <a href="{% url 'game_reviews' game.pk %}">Click here to see game reviews.</a>
+    {% endif %}
+
+{% endblock %}
+
+<script src="{% static 'jsfunc.js' %}"></script>
+{% block script %}{% endblock %}
+

@@ -1,0 +1,49 @@
+{% load static %}
+
+
+
+
+<!DOCTYPE html>
+<html>
+
+    {% if request.user.is_authenticated %}
+        Logged in user: {{ request.user }}.<br>
+
+    {% else %}
+        Not logged in.
+    {% endif %}<br>
+
+
+    <head>
+        <title>Mock Game-O-Meter</title>
+        <link rel="stylesheet" href="{% static 'newGameoMeter.css' %}">
+    </head>
+
+    <button onclick="myFunction()">Click me!</button>
+
+    <body>
+
+        <p id="consensus">Harry~~~~~diddyah put yet name in the goblat of firah.</p>
+        
+
+        <h1>Mock Game-O-Meter</h1>
+
+        
+
+        <div style="align-self:center;align-content:center;margin-left:30px;">
+            <form action="{% url 'search_results' %}" method="get">
+            <input name="q" type="text" placeholder="Search Games">
+        </div>
+
+        {% block content %}
+
+        {% endblock %}
+
+    </body>
+
+    <script src="{% static 'jsfunc.js' %}">
+        <!--Used to replace the squiggles with commas. -->
+        
+    </script>
+
+</html>
