@@ -12,6 +12,7 @@ import pandas as pd
 # Create your models here.
 
 
+
 class GameScores(models.Model):
   '''
   Stores the fake Tomatometer information for each game, as
@@ -66,6 +67,8 @@ class GameInfo(models.Model):
   poster_link = models.URLField(blank=True, null=True)
   critics_score = models.TextField(blank=True, null=True)
 
+
+  #used to calculate the game scores scrated from Metacritic.
   def game_scores(self):
     scores = GameScores.objects.filter(id_number=self.id_number)
     if len(scores) > 0:
@@ -91,7 +94,7 @@ class GameInfo(models.Model):
   #calculates the thumbs_up/thumbs_down percentage for each game using the individual reviews.
   def fake_controlometer(self):
     #filters reviews by id_number.
-    reviews = ReviewInfo.objects.filter(id_number=self.id_number)
+    reviews = ReviewInfo.objects.filter(id_number=self)
     #used to calculate the percentage of thumbs_up reviews.
     thumbs_up = 0 
     total_reviews = len(reviews) 
@@ -106,10 +109,42 @@ class GameInfo(models.Model):
       #converts to float to get percentage
       return math.ceil((float(float(thumbs_up)/float(total_reviews))*100))
   
+  def fresh_count(self):
+  #filters reviews by id_number.
+    reviews = ReviewInfo.objects.filter(id_number=self)
+    #used to calculate the percentage of thumbs_up reviews.
+    thumbs_up = 0 
+    total_reviews = len(reviews) 
+    #case where there are no values:
+    if total_reviews == 0:
+      return None
+    #case where there exists reviews.
+    else:
+      for review in reviews:
+        if review.fresh_rotten == True:
+          thumbs_up += 1 
+    return thumbs_up 
+  
+  def rotten_count(self):
+  #filters reviews by id_number.
+    reviews = ReviewInfo.objects.filter(id_number=self)
+    #used to calculate the percentage of thumbs_up reviews.
+    thumbs_down = 0 
+    total_reviews = len(reviews) 
+    #case where there are no values:
+    if total_reviews == 0:
+      return None
+    #case where there exists reviews.
+    else:
+      for review in reviews:
+        if review.fresh_rotten == False:
+          thumbs_down += 1 
+    return thumbs_down 
+  
   #returns the average rating for the game, calculated from the curved review ratings.
   def curved_average(self):
     #filters reviews by id_number.
-    reviews = ReviewInfo.objects.filter(id_number=self.id_number)
+    reviews = ReviewInfo.objects.filter(id_number=self)
     #formula used to calculate average.
     numerator = 0
     denominator = len(reviews)*100
@@ -127,12 +162,16 @@ class GameInfo(models.Model):
   
   #returns all of the reviews with the game's id.
   def get_reviews(self):
-    reviews = ReviewInfo.objects.filter(id_number=self.id_number).order_by('-rating')
+    reviews = ReviewInfo.objects.filter(id_number=self).order_by('-rating')
 
     if len(reviews) == 0:
       return None
 
     return reviews
+  
+  #returns the number of reviews that a game has.
+  def num_reviews(self):
+    return len(ReviewInfo.objects.filter(id_number=self))
     
   
   def bar_length(self):
@@ -172,6 +211,32 @@ class GameInfo(models.Model):
 
   def __str__(self):
     return f'The video game {self.name} has been added with ID number {self.id_number}.'
+
+
+
+class ReviewInfo(models.Model):
+  '''
+  Stores the information for each individual game review, identified using the 
+  corresponding game's ID number.
+  '''
+  #id_number = models.IntegerField(blank=False)
+  id_number = models.ForeignKey(GameInfo, on_delete=models.CASCADE)
+  publication = models.TextField(blank=False)
+  author = models.TextField(blank=False, null=True) 
+  #use the curved rating rather than the MC one.
+  rating = models.IntegerField(blank=False, null=True) 
+  display_score = models.TextField(blank=True,null=True)
+  fresh_rotten = models.BooleanField(blank=False)   
+  date_published = models.DateField(blank=False)
+  quote = models.TextField(blank=False)
+  platform = models.TextField(blank=False)
+  url_link = models.URLField(blank=True,null=True)
+
+
+  def __str__(self):
+    return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten}.'
+
+
 
 def load_scraped_game_info():
   '''
@@ -229,34 +294,16 @@ def load_scraped_game_info():
   print("Done.") 
 
 
-class ReviewInfo(models.Model):
-  '''
-  Stores the information for each individual game review, identified using the 
-  corresponding game's ID number.
-  '''
-  id_number = models.IntegerField(blank=False)
-  publication = models.TextField(blank=False)
-  author = models.TextField(blank=False, null=True) 
-  #use the curved rating rather than the MC one.
-  rating = models.IntegerField(blank=False, null=True) 
-  display_score = models.TextField(blank=True,null=True)
-  fresh_rotten = models.BooleanField(blank=False)   
-  date_published = models.DateField(blank=False)
-  quote = models.TextField(blank=False)
-  platform = models.TextField(blank=False)
-  url_link = models.URLField(blank=True,null=True)
-
-  def __str__(self):
-    return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten}.'
-
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/django_game/review_cvs/lego_sw2_metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/null.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
   headers = f.readline()
+
+
 
   # go through the entire file one line at a time
   for line in f:
@@ -278,11 +325,13 @@ def load_reviews():
         print('IT"S TIME TO FREAKING TOMATOMETER.')
       
 
+      #finds game that the review corresponds to.
+      game = GameInfo.objects.filter(id_number=fields[0]).first()
       
       #creates and saves the review info
       
       review = ReviewInfo(
-        id_number = fields[0], 
+        id_number = game, 
         publication = fields[1],
         author = fields[2],
         rating = fields[4],

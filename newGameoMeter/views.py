@@ -57,6 +57,7 @@ class SearchResultsView(ListView):
     context_object_name = 'games'
     paginate_by = 40
 
+    #used for filtering games in search results.
     def get_queryset(self):  # new
         query = self.request.GET.get("q", '')
         # allows the search engine to find game titles, publishers and developers.
@@ -177,6 +178,7 @@ class ShowGameReviewsView(DetailView):
   '''
   Used to display and filter the reviews for an individual game.
   '''
-  model = GameInfo 
+  model = GameInfo
   template_name = 'newGameoMeter/game_reviews.html' 
   context_object_name = 'game'
+

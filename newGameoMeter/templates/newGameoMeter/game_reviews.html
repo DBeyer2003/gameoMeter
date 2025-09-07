@@ -9,6 +9,18 @@
     {% if game.get_reviews == None %}
         No reviews yet.<br>
     {% else %}
+
+        <form action="{% url 'game_reviews' game.pk %}">
+            All Reviews:<br>
+            Fresh Reviews: <br>
+            Rotten Reviews:<br>
+            Filter By Time: <br>
+
+            (BUTTON THAT FILTERS WITH WHATEVER CONSOLES THIS GAME IS ON)<br>
+
+            <input class type="reviews-submit"><br>
+        </form>
+
         {% for review in game.get_reviews %}
             {{review.publication}}, {{review.author}}
 
@@ -19,11 +31,12 @@
             <br>
             {{review.quote}}<br>
             
-            {% if review.display_score != "No Score" %}
-                {{review.display_score}}
-            {% endif %}
-            {{review.fresh_rotten}} | 
-            
+            {% if review.fresh_rotten == True %}
+                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+            {% else %}
+                <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+            {% endif %} | 
+
             <!--Links to review if available.-->
             {% if review.url_link %}
                 {% if review.url_link == "" %}
@@ -31,6 +44,10 @@
                 {% else %}
                     <a href="{{review.url_link}}" target="_blank">Full Review</a>
                 {% endif %}
+            {% endif %}
+
+            {% if review.display_score != "No Score" %}
+                {{review.display_score}}
             {% endif %}
             
             <br>

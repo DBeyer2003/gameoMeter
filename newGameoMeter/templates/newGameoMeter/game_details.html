@@ -18,18 +18,19 @@
             <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
             {{game.fake_controlometer}}%<br>
             {{game.curved_average}}/10<br>
-            <br>
         {% elif game.fake_controlometer >= 60 %}
             <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
             {{game.fake_controlometer}}%<br>
             {{game.curved_average}}/10<br>
-            <br>
         {% else %}
             <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
             {{game.fake_controlometer}}%<br>
             {{game.curved_average}}/10<br>
-            <br>
         {% endif %}
+        <!--Used to track the number of reviews.-->
+        {{game.num_reviews}} reviews.<br>
+        Fresh: {{game.fresh_count}} | Rotten {{game.rotten_count}}
+        <br><br>
 
     {% else %}
         No Critics Score.<br>
