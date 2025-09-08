@@ -35,14 +35,14 @@
                 <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
             {% else %}
                 <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
-            {% endif %} | 
+            {% endif %}
 
             <!--Links to review if available.-->
             {% if review.url_link %}
-                {% if review.url_link == "" %}
+                {% if review.check_tomato == None %}
                     
                 {% else %}
-                    <a href="{{review.url_link}}" target="_blank">Full Review</a>
+                     | <a href="{{review.url_link}}" target="_blank">Full Review</a>
                 {% endif %}
             {% endif %}
 

@@ -17,6 +17,9 @@ from django.contrib.auth import authenticate, login
 from django.db.models import Q, Case, When # new
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django import template
+from django.db.models import Count
+from django.db.models import FloatField
+from django.db.models.functions import Cast
 
 # Create your views here.
 def home_page_view(request):
@@ -77,11 +80,14 @@ class SearchResultsView(ListView):
           if filters == 'newest':
              games = games.order_by('-release_date')
           if filters == 'highest_critics':
+             
              f_games = []
+             """
              scores = GameScores.objects.order_by('-all_percent')
              for s in scores:
                 s_id = s.id_number 
                 f_games.append(s_id)
+             
              score_ordering = Case(*[When(id_number=id, then=position) for position, id in enumerate(f_games)])
              games = games.filter(
                 id_number__in=f_games
@@ -91,17 +97,27 @@ class SearchResultsView(ListView):
                 id_number__in=f_games
              )
              games.union(non_games, all=True)
+             """
+             
+             games_with_reviews = games.annotate(num_fresh_ratings=
+                                                 Count("reviewinfo", filter=Q(reviewinfo__fresh_rotten=True))).annotate(
+                                                 total_ratings=Count("reviewinfo")).annotate(
+                                                 critics_rating=Cast('num_fresh_ratings',output_field=FloatField()) 
+                                                   / Cast('total_ratings',output_field=FloatField())
+                                                 )
+                
+             games = games_with_reviews.order_by('-critics_rating')
+             
 
           if filters == 'lowest_critics':
-            f_games = []
-            scores = GameScores.objects.order_by('all_percent')
-            for s in scores:
-               s_id = s.id_number 
-               f_games.append(s_id)
-            score_ordering = Case(*[When(id_number=id, then=position) for position, id in enumerate(f_games)])
-            games = games.filter(
-               id_number__in=f_games
-            ).order_by(score_ordering)
+            games_with_reviews = games.annotate(num_fresh_ratings=
+                                                 Count("reviewinfo", filter=Q(reviewinfo__fresh_rotten=True))).annotate(
+                                                 total_ratings=Count("reviewinfo")).annotate(
+                                                 critics_rating=Cast('num_fresh_ratings',output_field=FloatField()) 
+                                                   / Cast('total_ratings',output_field=FloatField())
+                                                 )
+                
+            games = games_with_reviews.order_by('critics_rating')
 
 
           if filters == 'highest_audience':
@@ -181,4 +197,11 @@ class ShowGameReviewsView(DetailView):
   model = GameInfo
   template_name = 'newGameoMeter/game_reviews.html' 
   context_object_name = 'game'
+
+  #used for filtering games in search results.
+  '''
+  def get_queryset(self):  # new
+   query = self.request.GET.get("q", '')
+   return query
+   '''
 

@@ -107,7 +107,10 @@ class GameInfo(models.Model):
         if review.fresh_rotten == True:
           thumbs_up += 1 
       #converts to float to get percentage
-      return math.ceil((float(float(thumbs_up)/float(total_reviews))*100))
+      if (float(float(thumbs_up)/float(total_reviews))*100) % 1 >= 0.5: 
+        return math.ceil((float(float(thumbs_up)/float(total_reviews))*100))
+      else:
+        return round((float(float(thumbs_up)/float(total_reviews))*100))
   
   def fresh_count(self):
   #filters reviews by id_number.
@@ -162,7 +165,7 @@ class GameInfo(models.Model):
   
   #returns all of the reviews with the game's id.
   def get_reviews(self):
-    reviews = ReviewInfo.objects.filter(id_number=self).order_by('-rating')
+    reviews = ReviewInfo.objects.filter(id_number=self).order_by('-date_published')
 
     if len(reviews) == 0:
       return None
@@ -232,11 +235,20 @@ class ReviewInfo(models.Model):
   platform = models.TextField(blank=False)
   url_link = models.URLField(blank=True,null=True)
 
+    #checks if the link is to rottentomatoes, in which case it means that
+  # there is no url link/
+  def check_tomato(self):
+    parsed_tomato = urlparse(self.url_link)
+    if parsed_tomato.netloc == 'letterboxd.com':
+      return None 
+    else:
+      return self.url_link
+
 
   def __str__(self):
     return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten}.'
-
-
+  
+  
 
 def load_scraped_game_info():
   '''
@@ -297,7 +309,7 @@ def load_scraped_game_info():
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/null.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/crysis3-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -325,8 +337,9 @@ def load_reviews():
         print('IT"S TIME TO FREAKING TOMATOMETER.')
       
 
-      #finds game that the review corresponds to.
+      #finds and deletes any duplicate reviews
       game = GameInfo.objects.filter(id_number=fields[0]).first()
+
       
       #creates and saves the review info
       
