@@ -5,23 +5,23 @@
 
 <img src="{{game.poster_link}}" width="120px"> <br>
     {{game.name}}<br><br>
-
-    {% if game.get_reviews == None %}
+    {% if game_reviews == None %}
         No reviews yet.<br>
     {% else %}
 
-        <form action="{% url 'game_reviews' game.pk %}">
-            All Reviews:<br>
-            Fresh Reviews: <br>
-            Rotten Reviews:<br>
-            Filter By Time: <br>
+        <form action="{% url 'game_reviews' game.pk %}" method="get">
+            All Reviews: <input type="radio" name="f-r" value="all"><br>
+            Fresh Only: <input type="radio" name="f-r" value="fresh"><br>
+            Rotten ONly: <input type="radio" name="f-r" value="rotten"><br> 
+
 
             (BUTTON THAT FILTERS WITH WHATEVER CONSOLES THIS GAME IS ON)<br>
 
-            <input class type="reviews-submit"><br>
+            <input class="reviews" type="submit"><br>
         </form>
 
-        {% for review in game.get_reviews %}
+
+        {% for review in game_reviews %}
             {{review.publication}}, {{review.author}}
 
             {% if review.date_published != "N/A" %}

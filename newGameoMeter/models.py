@@ -8,6 +8,7 @@ from django.contrib.auth.models import User ## NEW
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import pandas as pd
+import random
 
 # Create your models here.
 
@@ -159,7 +160,10 @@ class GameInfo(models.Model):
         numerator += review.rating 
 
       #returns score as ##/10, rounded to one decimal digit.
-      string_score = round(float(float(numerator)/float(denominator))*10,1)
+      if float(float(numerator)/float(denominator))*100 % 1 >= 0.5:
+        return math.ceil(float(float(numerator)/float(denominator))*100) / 10
+      else:
+        return round(float(float(numerator)/float(denominator))*10,1)
 
       return string_score
   
@@ -171,6 +175,14 @@ class GameInfo(models.Model):
       return None
 
     return reviews
+  
+  #returns three random reviews to display on the front page.
+  def three_random_reviews(self):
+    if len(ReviewInfo.objects.filter(id_number=self)) == 1:
+      return random.sample(list(ReviewInfo.objects.filter(id_number=self)), 1)
+    if len(ReviewInfo.objects.filter(id_number=self)) == 2:
+      return random.sample(list(ReviewInfo.objects.filter(id_number=self)), 2)
+    return random.sample(list(ReviewInfo.objects.filter(id_number=self)), 3)
   
   #returns the number of reviews that a game has.
   def num_reviews(self):
@@ -222,7 +234,6 @@ class ReviewInfo(models.Model):
   Stores the information for each individual game review, identified using the 
   corresponding game's ID number.
   '''
-  #id_number = models.IntegerField(blank=False)
   id_number = models.ForeignKey(GameInfo, on_delete=models.CASCADE)
   publication = models.TextField(blank=False)
   author = models.TextField(blank=False, null=True) 
@@ -309,7 +320,7 @@ def load_scraped_game_info():
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/crysis3-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/null.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers

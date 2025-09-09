@@ -20,6 +20,7 @@ from django import template
 from django.db.models import Count
 from django.db.models import FloatField
 from django.db.models.functions import Cast
+from . filters import *
 
 # Create your views here.
 def home_page_view(request):
@@ -117,8 +118,10 @@ class SearchResultsView(ListView):
                                                    / Cast('total_ratings',output_field=FloatField())
                                                  )
                 
-            games = games_with_reviews.order_by('critics_rating')
+            games = games_with_reviews.filter(total_ratings__gt=0).order_by('critics_rating')
 
+            non_games = games_with_reviews.filter(total_ratings__lt=1)
+            games.union(non_games,all=True)
 
           if filters == 'highest_audience':
              f_games = []
@@ -191,17 +194,47 @@ class UpdateGameScoresView(UpdateView):
 
 
 class ShowGameReviewsView(DetailView):
-  '''
-  Used to display and filter the reviews for an individual game.
-  '''
-  model = GameInfo
-  template_name = 'newGameoMeter/game_reviews.html' 
-  context_object_name = 'game'
-
-  #used for filtering games in search results.
-  '''
-  def get_queryset(self):  # new
-   query = self.request.GET.get("q", '')
-   return query
    '''
+   Used to display and filter the reviews for an individual game.
+   '''
+   model = GameInfo
+   template_name = 'newGameoMeter/game_reviews.html' 
+   context_object_name = 'game'
+
+   #used for filtering games in search results.
+   '''
+   def get_queryset(self):  # new
+      query = self.request.GET.get("q", '')
+      return query
+   '''
+   def get_context_data(self, *arg,**kwargs):
+      context = super(ShowGameReviewsView,self).get_context_data(*arg,**kwargs)
+      game = GameInfo.objects.filter(pk=self.kwargs['pk']).first()
+
+      if 'f-r' in self.request.GET:
+         filter = self.request.GET['f-r']
+         if filter == 'all':
+            context.update({
+               #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
+               'game_reviews': ReviewInfo.objects.filter(id_number=game),
+            })
+         if filter == 'fresh':
+            context.update({
+               #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
+               'game_reviews': ReviewInfo.objects.filter(id_number=game).filter(fresh_rotten=True),
+            })
+         if filter == 'rotten':
+            context.update({
+               #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
+               'game_reviews': ReviewInfo.objects.filter(id_number=game).filter(fresh_rotten=False),
+            })
+
+      else:
+         context.update({
+            #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
+            'game_reviews': ReviewFilterSet(self.request.GET, ReviewInfo.objects.filter(id_number=game),request=self.request).qs.distinct(),
+         })
+
+      return context
+
 
