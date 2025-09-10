@@ -15,26 +15,49 @@
     {% if game.fake_controlometer %} 
 
         {% if game.fake_controlometer > 74 %} 
-            <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
-            {{game.fake_controlometer}}%<br>
-            {{game.curved_average}}/10<br>
+            <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
+            {% if game.num_reviews >= 40 %}
+                <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+            {% else %}
+                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+            {% endif %}
+            <!--The critical score info.-->
+            {{controlometer}}%<br>
+            {{average_rating}}/10<br>
         {% elif game.fake_controlometer >= 60 %}
-            <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
-            {{game.fake_controlometer}}%<br>
-            {{game.curved_average}}/10<br>
+            {% if controlometer >= 60 %}
+                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+            {% else %}
+                <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+            {% endif %}
+            <!--The critical score info.-->
+            {{controlometer}}%<br>
+            {{average_rating}}/10<br>
         {% else %}
             <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
-            {{game.fake_controlometer}}%<br>
-            {{game.curved_average}}/10<br>
+            {{controlometer}}%<br>
+            {{average_rating}}/10<br>
         {% endif %}
         <!--Used to track the number of reviews.-->
-        {{game.num_reviews}} reviews.<br>
-        Fresh: {{game.fresh_count}} | Rotten {{game.rotten_count}}
+        {{total_reviews}} reviews.<br>
+        Fresh: {{num_fresh}} | Rotten {{num_rotten}}
         <br><br>
 
     {% else %}
         No Critics Score.<br>
     {% endif %}
+
+    FILTER CONSOLES:
+    {% if game.filtered_consoles %}
+        <form action="{% url 'game_details' game.pk %}" method="get">
+            <input type="checkbox" name="all-consoles", value="All"> All Systems<br>
+            {% for console in game.filtered_consoles %}
+                <input type="checkbox" name="console", value="{{console}}"> {{console}}<br>
+            {% endfor %}
+            <input class="console" type="submit"><br>
+        </form>
+    {% endif %}
+    <br>
 
     {% if game.game_scores %}
         {% if game.game_scores.user_percent > 59.0 %}

@@ -187,7 +187,27 @@ class GameInfo(models.Model):
   #returns the number of reviews that a game has.
   def num_reviews(self):
     return len(ReviewInfo.objects.filter(id_number=self))
-    
+
+  #scans the reviews to see what consoles the game was reviewed
+  #for, so that the user can filter the reviews based on the filtered
+  #consoles.
+  def filtered_consoles(self):
+    #list of all of the possible systems 
+    all_systems = ['PlayStation 2', 'GameCube', 'Wii', 'Xbox',
+                   'PlayStation 3', 'Xbox 360',
+                   'Wii U', 'PlayStation 4', 'Xbox One',
+                   '3DS', 'PC', 'PSP', 'PlayStation 5',
+                   'Nintendo Switch', 'PlayStation Vita',]
+    current_systems = []
+    reviews = ReviewInfo.objects.filter(id_number=self).exclude(platform__contains="/")
+    for review in reviews:
+      if review.platform in all_systems and review.platform not in current_systems:
+        current_systems.append(review.platform)
+        #print(review.platform)
+    if len(current_systems) > 1:
+      return current_systems
+    else:
+      return None
   
   def bar_length(self):
     metabars = MetaBars.objects.filter(id_number = self.id_number)
@@ -325,7 +345,6 @@ def load_reviews():
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
   headers = f.readline()
-
 
 
   # go through the entire file one line at a time

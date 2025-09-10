@@ -1,3 +1,5 @@
+from ast import operator
+from functools import reduce
 from django.shortcuts import render
 
 # Create your views here.
@@ -165,6 +167,87 @@ class ShowGameDetailsView(DetailView):
    template_name = 'newGameoMeter/game_details.html'
    context_object_name = 'game'
 
+   game_systems = ['PlayStation 2', 'GameCube', 'Wii', 'Xbox',
+                   'PlayStation 3', 'Xbox 360',
+                   'Wii U', 'PlayStation 4', 'Xbox One',
+                   '3DS', 'PC', 'PSP', 'PlayStation 5',
+                   'Nintendo Switch', 'PlayStation Vita',]
+
+   def get_context_data(self, *arg,**kwargs):
+      context = super(ShowGameDetailsView,self).get_context_data(*arg,**kwargs)
+      game = GameInfo.objects.filter(pk=self.kwargs['pk']).first()
+
+      reviews = ReviewInfo.objects.filter(id_number=game)
+
+      controlometer = 0.0
+      
+      #processes option to filter the review scores based on the console.
+      if 'console' in self.request.GET:
+         systems = self.request.GET.getlist('console')
+         #used to recursively filter the systems that reviews have been written for.
+         filtered_systems = Q()
+         for system in systems:
+            filtered_systems |= Q(platform__icontains = system)
+         reviews = reviews.filter(filtered_systems)
+
+         #number of reviews.
+         total_reviews = len(reviews) 
+         #used to calculate the percentage of thumbs_up reviews.
+         thumbs_up = 0 
+         #used to calculate the percentage of thumbs_down reviews.
+         thumbs_down = 0
+         #percentage, total.
+         controlometer = 0.0
+         #formula used to calculate average.
+         numerator = 0
+         denominator = len(reviews)*100
+         average_rating = 0.0
+         #case where there exists reviews.
+         for review in reviews:
+            #used to calculate the percentage of positive to negative
+            if review.fresh_rotten == True:
+               thumbs_up += 1 
+            if review.fresh_rotten == False:
+               thumbs_down += 1
+            
+            #used to calculate the average rating.
+            numerator += review.rating 
+         
+         #the final average rating.
+         if (float(float(thumbs_up)/float(total_reviews))*100) % 1 >= 0.5: 
+            controlometer = math.ceil((float(float(thumbs_up)/float(total_reviews))*100))
+         else:
+            controlometer = round((float(float(thumbs_up)/float(total_reviews))*100))
+
+         #returns score as ##/10, rounded to one decimal digit.
+         if float(float(numerator)/float(denominator))*100 % 1 >= 0.5:
+            average_rating = math.ceil(float(float(numerator)/float(denominator))*100) / 10
+         else:
+            average_rating = round(float(float(numerator)/float(denominator))*10,1)
+
+
+         context.update({
+            'num_fresh': thumbs_up,
+            'num_rotten': thumbs_down,
+            'total_reviews': total_reviews,
+            'controlometer': controlometer, 
+            'average_rating': average_rating,
+         })
+         """"""
+      
+      else:
+         context.update({
+            'num_fresh': game.fresh_count(),
+            'num_rotten': game.rotten_count(),
+            'total_reviews': game.num_reviews(),
+            'controlometer': game.fake_controlometer(), 
+            'average_rating': game.curved_average(),
+         })
+
+
+      return context
+
+
 class UpdateGameScoresView(UpdateView):
 
   form_class = UpdateGameScoresForm
@@ -211,29 +294,38 @@ class ShowGameReviewsView(DetailView):
       context = super(ShowGameReviewsView,self).get_context_data(*arg,**kwargs)
       game = GameInfo.objects.filter(pk=self.kwargs['pk']).first()
 
+      reviews = ReviewInfo.objects.all().order_by("-date_published").filter(id_number=game)
+
+      #checks if there is a filter to sort from.
+      if 'date' in self.request.GET:
+         filter = self.request.GET['date']
+         if filter == 'latest':
+            reviews = reviews.order_by("-date_published")
+         if filter == 'earliest':
+            reviews = reviews.order_by("date_published")
+
+      #checks if there is a filter to sort between fresh-rotten reviews.
       if 'f-r' in self.request.GET:
          filter = self.request.GET['f-r']
-         if filter == 'all':
-            context.update({
-               #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
-               'game_reviews': ReviewInfo.objects.filter(id_number=game),
-            })
          if filter == 'fresh':
-            context.update({
-               #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
-               'game_reviews': ReviewInfo.objects.filter(id_number=game).filter(fresh_rotten=True),
-            })
+            reviews = reviews.filter(fresh_rotten=True)
          if filter == 'rotten':
-            context.update({
-               #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
-               'game_reviews': ReviewInfo.objects.filter(id_number=game).filter(fresh_rotten=False),
-            })
+            reviews = reviews.filter(fresh_rotten=False)
+      
+      #processes option to filter reviews based on the console.
+      if 'console' in self.request.GET:
+         systems = self.request.GET.getlist('console')
+         filtered_systems = Q()
+         for system in systems:
+            filtered_systems |= Q(platform__icontains = system)
+         reviews = reviews.filter(filtered_systems)
 
-      else:
-         context.update({
-            #'game_reviews': ReviewFilterSet(self.request.GET,queryset=ReviewInfo.objects.filter(id_number=game.id_number))
-            'game_reviews': ReviewFilterSet(self.request.GET, ReviewInfo.objects.filter(id_number=game),request=self.request).qs.distinct(),
-         })
+      
+
+      context.update({
+         'game_reviews':reviews
+      })
+
 
       return context
 

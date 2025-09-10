@@ -5,6 +5,7 @@
 
 <img src="{{game.poster_link}}" width="120px"> <br>
     {{game.name}}<br><br>
+    <a href="{% url 'game_details' game.pk %}">Back to main game page.</a><br>
     {% if game_reviews == None %}
         No reviews yet.<br>
     {% else %}
@@ -13,6 +14,18 @@
             All Reviews: <input type="radio" name="f-r" value="all"><br>
             Fresh Only: <input type="radio" name="f-r" value="fresh"><br>
             Rotten ONly: <input type="radio" name="f-r" value="rotten"><br> 
+
+
+
+            Latest First: <input type="radio", name="date",value="latest"><br>
+            Earliest First: <input type="radio", name="date",value="earliest"><br>
+
+            {% if game.filtered_consoles != None %}
+                <input type="checkbox" name="all-consoles", value="All"> All Systems<br>
+                {% for console in game.filtered_consoles %}
+                    <input type="checkbox" name="console", value="{{console}}"> {{console}}<br>
+                {% endfor %}
+            {% endif %}
 
 
             (BUTTON THAT FILTERS WITH WHATEVER CONSOLES THIS GAME IS ON)<br>
@@ -30,6 +43,8 @@
             
             <br>
             {{review.quote}}<br>
+
+            {{review.platform}}<br>
             
             {% if review.fresh_rotten == True %}
                 <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
