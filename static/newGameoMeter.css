@@ -1,3 +1,61 @@
 body {
     background-color:rgb(0, 177, 177);
 }
+
+title {
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    color:brown;
+}
+
+head {
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+}
+
+div.head {
+    align-items: center;
+}
+
+div.search {
+    align-items:right;
+}
+
+div.score-info {
+    align-items:center;
+}
+
+
+h1.title {
+    text-align:center;
+    font-size:60px;
+    text-decoration: none;
+}
+
+a.title {
+    text-decoration: none;
+    color: inherit;
+}
+
+h1.title:hover {
+    color:blue;
+    transition:0.2s;
+}
+
+progress.fresh {
+    background: orange;
+}
+
+progress.fresh::-webkit-progress-value {
+    background-color: #bc0000;
+}
+
+progress.rotten {
+    background: orange;
+}
+
+progress.rotten::-webkit-progress-value {
+    background-color: #018b0f;
+}
