@@ -15,13 +15,13 @@
             Fresh Only: <input type="radio" name="f-r" value="fresh"><br>
             Rotten ONly: <input type="radio" name="f-r" value="rotten"><br> 
 
+            Sort By Latest First: <input type="radio", name="date",value="latest"><br>
+            Sort By Earliest First: <input type="radio", name="date",value="earliest"><br>
 
-
-            Latest First: <input type="radio", name="date",value="latest"><br>
-            Earliest First: <input type="radio", name="date",value="earliest"><br>
+            
 
             {% if game.filtered_consoles != None %}
-                <input type="checkbox" name="all-consoles", value="All"> All Systems<br>
+                <input type="checkbox" name="console", value="All"> All Systems<br>
                 {% for console in game.filtered_consoles %}
                     <input type="checkbox" name="console", value="{{console}}"> {{console}}<br>
                 {% endfor %}

@@ -21,19 +21,19 @@ class GameScores(models.Model):
   '''
   id_number = models.IntegerField(blank=False)
   title = models.TextField(blank=False)
-  mock_mc = models.FloatField(blank=True)
-  all_percent = models.FloatField(blank=True)
-  all_rating = models.TextField(blank=True)
-  tc_percent = models.FloatField(blank=True)
-  tc_rating = models.TextField(blank=True)
-  user_percent = models.FloatField(blank=True)
-  user_rating = models.TextField(blank=True)
+  mock_mc = models.FloatField(blank=True, null=True)
+  all_percent = models.FloatField(blank=True, null=True)
+  all_rating = models.TextField(blank=True, null=True)
+  tc_percent = models.FloatField(blank=True, null=True)
+  tc_rating = models.TextField(blank=True, null=True)
+  user_percent = models.FloatField(blank=True, null=True)
+  user_rating = models.TextField(blank=True, null=True)
   critics_consensus = models.TextField(blank=True, null=True, max_length=100000)
 
   # numbers to determine symbol for accompanying ratings.
-  all_symbol = models.FloatField(blank=True)
-  tc_symbol = models.FloatField(blank=True)
-  user_symbol = models.FloatField(blank=True)
+  all_symbol = models.FloatField(blank=True, null=True)
+  tc_symbol = models.FloatField(blank=True, null=True)
+  user_symbol = models.FloatField(blank=True, null=True)
 
   def __str__(self):
     return f'The video game {self.title} is score-ready with ID {self.id_number}.'
@@ -197,7 +197,7 @@ class GameInfo(models.Model):
                    'PlayStation 3', 'Xbox 360',
                    'Wii U', 'PlayStation 4', 'Xbox One',
                    '3DS', 'PC', 'PSP', 'PlayStation 5',
-                   'Nintendo Switch', 'PlayStation Vita',]
+                   'Nintendo Switch', 'PlayStation Vita','iOS',]
     current_systems = []
     reviews = ReviewInfo.objects.filter(id_number=self).exclude(platform__contains="/")
     for review in reviews:
@@ -208,6 +208,8 @@ class GameInfo(models.Model):
       return current_systems
     else:
       return None
+  
+  
   
   def bar_length(self):
     metabars = MetaBars.objects.filter(id_number = self.id_number)
@@ -243,6 +245,7 @@ class GameInfo(models.Model):
       return color_list
     else:
       return None
+
 
   def __str__(self):
     return f'The video game {self.name} has been added with ID number {self.id_number}.'
@@ -290,18 +293,20 @@ def load_scraped_game_info():
   #GameInfo.objects.all().delete()
 
   # open the file for reading one line at a time
-  filename = '/Users/DBeye/django_game/media/game_info.csv'
+  filename = '/Users/DBeye/new_django_game/review_hub/game_info_alt.csv'
   # open the file for reading
   f = open(filename, encoding="utf8") 
   # discard the first line containing headers
   headers = f.readline()
 
-  GameInfo.objects.all().delete()
+  
 
   # go through the entire file one line at a time
   for line in f:
     
     try:
+      #if len(GameInfo.objects.filter(id_number=fields[0])) > 0:
+      #  GameInfo.objects.filter(id_number=fields[0]).delete()
       #split the CSV file into fields
       fields = line.split(',')
 
@@ -340,7 +345,7 @@ def load_scraped_game_info():
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/null.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/sm64-ds-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers

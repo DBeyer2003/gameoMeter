@@ -23,6 +23,7 @@ from django.db.models import Count
 from django.db.models import FloatField
 from django.db.models.functions import Cast
 from . filters import *
+from django.urls import reverse_lazy
 
 # Create your views here.
 def home_page_view(request):
@@ -169,9 +170,10 @@ class ShowGameDetailsView(DetailView):
 
    game_systems = ['PlayStation 2', 'GameCube', 'Wii', 'Xbox',
                    'PlayStation 3', 'Xbox 360',
-                   'Wii U', 'PlayStation 4', 'Xbox One',
+                   'Wii U', 'PlayStation 4', 'Xbox One', 'DS',
                    '3DS', 'PC', 'PSP', 'PlayStation 5',
-                   'Nintendo Switch', 'PlayStation Vita',]
+                   'Nintendo Switch', 'PlayStation Vita',
+                   'iOS (iPhone/iPad)']
 
    def get_context_data(self, *arg,**kwargs):
       context = super(ShowGameDetailsView,self).get_context_data(*arg,**kwargs)
@@ -183,12 +185,24 @@ class ShowGameDetailsView(DetailView):
       
       #processes option to filter the review scores based on the console.
       if 'console' in self.request.GET:
-         systems = self.request.GET.getlist('console')
          #used to recursively filter the systems that reviews have been written for.
+         systems = self.request.GET.getlist('console')
          filtered_systems = Q()
-         for system in systems:
-            filtered_systems |= Q(platform__icontains = system)
-         reviews = reviews.filter(filtered_systems)
+         #If the All checkbox is checked, every review will be returned anyways.
+         if 'All' not in systems:
+            for system in systems:
+               #ensures that the xbox 360 isn't included in the filter for the
+               #original xbox.
+               if system == 'Xbox':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'Xbox /') | Q(platform__contains = '/ Xbox')
+               #ensures that the 3ds isn't included in the filter for the 
+               #original ds.
+               elif system == 'DS':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
+               else:
+                  filtered_systems |= Q(platform__icontains = system)
+            
+            reviews = reviews.filter(filtered_systems)
 
          #number of reviews.
          total_reviews = len(reviews) 
@@ -234,7 +248,8 @@ class ShowGameDetailsView(DetailView):
             'average_rating': average_rating,
          })
          """"""
-      
+      #case where there is only one system that the 
+      #game was reviewed for.
       else:
          context.update({
             'num_fresh': game.fresh_count(),
@@ -294,15 +309,7 @@ class ShowGameReviewsView(DetailView):
       context = super(ShowGameReviewsView,self).get_context_data(*arg,**kwargs)
       game = GameInfo.objects.filter(pk=self.kwargs['pk']).first()
 
-      reviews = ReviewInfo.objects.all().order_by("-date_published").filter(id_number=game)
-
-      #checks if there is a filter to sort from.
-      if 'date' in self.request.GET:
-         filter = self.request.GET['date']
-         if filter == 'latest':
-            reviews = reviews.order_by("-date_published")
-         if filter == 'earliest':
-            reviews = reviews.order_by("date_published")
+      reviews = ReviewInfo.objects.filter(id_number=game)
 
       #checks if there is a filter to sort between fresh-rotten reviews.
       if 'f-r' in self.request.GET:
@@ -316,11 +323,30 @@ class ShowGameReviewsView(DetailView):
       if 'console' in self.request.GET:
          systems = self.request.GET.getlist('console')
          filtered_systems = Q()
-         for system in systems:
-            filtered_systems |= Q(platform__icontains = system)
-         reviews = reviews.filter(filtered_systems)
+         #If the All checkbox is checked, every review will be returned anyways.
+         if 'All' not in systems:
+            for system in systems:
+               #ensures that the xbox 360 isn't included in the filter for the
+               #original xbox.
+               if system == 'Xbox':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'Xbox /') | Q(platform__contains = '/ Xbox')
+               #ensures that the 3ds isn't included in the filter for the 
+               #original ds.
+               elif system == 'DS':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
+               else:
+                  filtered_systems |= Q(platform__icontains = system)
+            reviews = reviews.filter(filtered_systems)
 
-      
+      #checks if there is a filter to sort from.
+      if 'date' in self.request.GET:
+         filter = self.request.GET['date']
+         if filter == 'latest':
+            reviews = reviews.order_by("-date_published")
+         if filter == 'earliest':
+            reviews = reviews.order_by("date_published")
+      else:
+         reviews = reviews.order_by("-date_published")
 
       context.update({
          'game_reviews':reviews
@@ -330,3 +356,31 @@ class ShowGameReviewsView(DetailView):
       return context
 
 
+
+class CreateGameInfoView(LoginRequiredMixin, CreateView):
+  '''A view to add information for a game that hasn't been registered yet.'''
+  form_class = CreateGameInfoForm 
+  template_name = 'newGameoMeter/create_game_info_form.html'
+
+  def form_valid(self,form):
+
+    print(f'CreateGameInfoView.form_valid(): form={form.cleaned_data}')
+    print(f'CreateGameInfoView.form_valid(): self.kwargs={self.kwargs}')
+
+
+    # save the status message to database
+    form.save()
+
+
+    # delegate work to superclass version of method
+    return super().form_valid(form)
+  
+  def get_success_url(self):
+     return reverse('all_games')
+  
+
+
+  
+
+  
+  

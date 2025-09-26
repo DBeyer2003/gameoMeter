@@ -24,7 +24,13 @@
             {% if g.fake_controlometer %} 
 
                 {% if g.fake_controlometer > 74 %} 
-                    <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+                    <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
+                    {% if g.num_reviews >= 40 %}
+                        <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+                    {% else %}
+                        <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                    {% endif %}
+                    <!--The actual game score.-->
                     {{g.fake_controlometer}}%
                 {% elif g.fake_controlometer >= 60 %}
                     <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">

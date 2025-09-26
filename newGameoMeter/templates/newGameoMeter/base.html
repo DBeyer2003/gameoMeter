@@ -23,18 +23,20 @@
 
     <body>
 
-        <p id="consensus">Harry~~~~~diddyah put yet name in the goblat of firah.</p>
+        <p id="consensus">Harry~~~~~diddyah put yet name in the goblat of firah.</p>  
         
-
-        <h1>Mock Game-O-Meter</h1>
-
-        
-
-        <div style="align-self:center;align-content:center;margin-left:30px;">
+        <div class="search">
             <form action="{% url 'search_results' %}" method="get">
             <input name="q" type="text" placeholder="Search Games">
             </form>
         </div>
+        
+
+        <h1 class="title"><a class="title" href="{% url 'home' %}">Mock Game-O-Meter</a></h1>
+
+        
+
+        
 
         {% block content %}
 

@@ -11,32 +11,56 @@
         <a href="{% url 'update_scores' game.game_scores.pk %}">UPDATE SCORES</a>
     {% endif %}<br>
 
+    <div class="score-info">
     
-    {% if game.fake_controlometer %} 
-
-        {% if game.fake_controlometer > 74 %} 
-            <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
-            {% if game.num_reviews >= 40 %}
-                <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+    {% if game.fake_controlometer %}
+        <!--Only displays scores if there are at least five reviews.--> 
+        {% if total_reviews >= 5 %}
+            {% if game.fake_controlometer > 74 %} 
+                <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
+                {% if game.num_reviews >= 40 %}
+                    <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+                {% else %}                   
+                    <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                {% endif %}
+                <!--The critical score info.-->
+                {{controlometer}}%<br>
+                {{average_rating}}/10<br>
+                <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
+            {% elif game.fake_controlometer >= 60 %}
+                {% if controlometer >= 60 %}
+                    <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                    {{controlometer}}%<br>
+                    {{average_rating}}/10<br>
+                    <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
+                {% else %}
+                    <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                    {{controlometer}}%<br>
+                    {{average_rating}}/10<br>
+                    <progress class="rotten" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
+                {% endif %}
+                <!--The critical score info.-->
+                
             {% else %}
-                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                {% if controlometer >= 60 %}
+                    <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                    {{controlometer}}%<br>
+                    {{average_rating}}/10<br>
+                    <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
+                {% else %}
+                    <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                    {{controlometer}}%<br>
+                    {{average_rating}}/10<br>
+                    <progress class="rotten" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
+                {% endif %}
+                <!--The critical score info.-->
+                {{controlometer}}%<br>
+                {{average_rating}}/10<br>
             {% endif %}
-            <!--The critical score info.-->
-            {{controlometer}}%<br>
-            {{average_rating}}/10<br>
-        {% elif game.fake_controlometer >= 60 %}
-            {% if controlometer >= 60 %}
-                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
-            {% else %}
-                <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
-            {% endif %}
-            <!--The critical score info.-->
-            {{controlometer}}%<br>
-            {{average_rating}}/10<br>
+            
+        <!--Case where there are not enough reviews for a score.-->
         {% else %}
-            <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
-            {{controlometer}}%<br>
-            {{average_rating}}/10<br>
+            No Score Yet.<br>
         {% endif %}
         <!--Used to track the number of reviews.-->
         {{total_reviews}} reviews.<br>
@@ -44,16 +68,21 @@
         <br><br>
 
     {% else %}
-        No Critics Score.<br>
+        No Score Yet.<br>
     {% endif %}
+    </div>
 
     FILTER CONSOLES:
     {% if game.filtered_consoles %}
         <form action="{% url 'game_details' game.pk %}" method="get">
-            <input type="checkbox" name="all-consoles", value="All"> All Systems<br>
+            <input type="checkbox" name="console", value="All"> All Systems<br>
             {% for console in game.filtered_consoles %}
                 <input type="checkbox" name="console", value="{{console}}"> {{console}}<br>
             {% endfor %}
+            <!--Add a function to sort by dates here.-->
+            <input type="fromSlider" id="date-range" name="date-range" min="0" max="100">
+            <input type="toSlider" id="date-range" name="date-range" min="0" max="100">
+
             <input class="console" type="submit"><br>
         </form>
     {% endif %}
@@ -77,9 +106,7 @@
     Critics' Consensus: <p id="consensus">{{game.game_scores.critics_consensus}}</p><br>
     <br>
     {% endif %}
-
-
-    
+   
 
     <br>
     <br>
