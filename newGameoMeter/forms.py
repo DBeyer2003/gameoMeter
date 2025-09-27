@@ -24,6 +24,15 @@ class CreateGameInfoForm(forms.ModelForm):
               'developers', 'genres', 'publishers', 'esrb_rating', 'poster_link', 'critics_score']
 
 
+class UpdateGameInfoForm(forms.ModelForm):
+  '''A form to update/edit info for individual games.'''
+    #Stores the attributes for the given game.
+  class Meta:
+    model = GameInfo
+    fields = ['id_number', 'slug', 'name', 'release_date', 'tba', 'website', 'platforms', 
+              'developers', 'genres', 'publishers', 'esrb_rating', 'poster_link', 'critics_score']
+
+
 class UpdateGameScoresForm(forms.ModelForm):
   '''
   A form to update the details for a given game.
@@ -32,5 +41,15 @@ class UpdateGameScoresForm(forms.ModelForm):
   class Meta:
     model = GameScores
     fields = ['mock_mc', 'all_percent', 'all_rating', 'tc_percent', 'tc_rating', 'user_percent', 'user_rating', 'critics_consensus']
+
+
+class UpdateReviewInfoForm(forms.ModelForm):
+  '''
+  A form to update the details for a given game.
+  '''
+  #Stores the attributes for the given game.
+  class Meta:
+    model = ReviewInfo
+    fields = ['id_number', 'publication','author', 'rating','display_score','fresh_rotten','date_published','quote','platform','url_link']
 
 

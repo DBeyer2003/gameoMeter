@@ -173,16 +173,16 @@ class ShowGameDetailsView(DetailView):
                    'Wii U', 'PlayStation 4', 'Xbox One', 'DS',
                    '3DS', 'PC', 'PSP', 'PlayStation 5',
                    'Nintendo Switch', 'PlayStation Vita',
-                   'iOS (iPhone/iPad)']
+                   'iOS (iPhone/iPad)', 'iOS']
 
    def get_context_data(self, *arg,**kwargs):
       context = super(ShowGameDetailsView,self).get_context_data(*arg,**kwargs)
       game = GameInfo.objects.filter(pk=self.kwargs['pk']).first()
 
       reviews = ReviewInfo.objects.filter(id_number=game)
-
-      controlometer = 0.0
+      #, date_published__range=(2010-1-1, 2025-12-25)
       
+
       #processes option to filter the review scores based on the console.
       if 'console' in self.request.GET:
          #used to recursively filter the systems that reviews have been written for.
@@ -203,30 +203,49 @@ class ShowGameDetailsView(DetailView):
                   filtered_systems |= Q(platform__icontains = system)
             
             reviews = reviews.filter(filtered_systems)
-
-         #number of reviews.
-         total_reviews = len(reviews) 
-         #used to calculate the percentage of thumbs_up reviews.
-         thumbs_up = 0 
-         #used to calculate the percentage of thumbs_down reviews.
-         thumbs_down = 0
-         #percentage, total.
-         controlometer = 0.0
-         #formula used to calculate average.
-         numerator = 0
-         denominator = len(reviews)*100
-         average_rating = 0.0
-         #case where there exists reviews.
-         for review in reviews:
-            #used to calculate the percentage of positive to negative
-            if review.fresh_rotten == True:
-               thumbs_up += 1 
-            if review.fresh_rotten == False:
-               thumbs_down += 1
-            
-            #used to calculate the average rating.
-            numerator += review.rating 
          
+      #processes option to filter reviews by date published.
+      if 'date-range-low' in self.request.GET:
+         firstDate = self.request.GET['date-range-low']
+         if firstDate != '':
+            print(firstDate)
+            convertedDate = datetime.strptime(firstDate,"%Y-%m-%d").date()
+            reviews = reviews.filter(date_published__gte=convertedDate)
+         
+      if 'date-range-high' in self.request.GET:
+         lastDate = self.request.GET['date-range-high']
+         if lastDate != '':
+            print(lastDate)
+            convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
+            reviews = reviews.filter(date_published__lte=convertedDate)
+
+      #number of reviews.
+      total_reviews = len(reviews) 
+      #used to calculate the percentage of thumbs_up reviews.
+      thumbs_up = 0 
+      #used to calculate the percentage of thumbs_down reviews.
+      thumbs_down = 0
+      #percentage, total.
+      controlometer = 0.0
+      #formula used to calculate average.
+      numerator = 0
+      denominator = len(reviews)*100
+      average_rating = 0.0
+
+      #case where there exists reviews.
+      for review in reviews:
+         #used to calculate the percentage of positive to negative
+         if review.fresh_rotten == True:
+            thumbs_up += 1 
+            total_reviews
+         if review.fresh_rotten == False:
+            thumbs_down += 1
+         
+         #used to calculate the average rating.
+         numerator += review.rating 
+      
+      
+      if total_reviews != 0:
          #the final average rating.
          if (float(float(thumbs_up)/float(total_reviews))*100) % 1 >= 0.5: 
             controlometer = math.ceil((float(float(thumbs_up)/float(total_reviews))*100))
@@ -238,26 +257,28 @@ class ShowGameDetailsView(DetailView):
             average_rating = math.ceil(float(float(numerator)/float(denominator))*100) / 10
          else:
             average_rating = round(float(float(numerator)/float(denominator))*10,1)
-
-
-         context.update({
-            'num_fresh': thumbs_up,
-            'num_rotten': thumbs_down,
-            'total_reviews': total_reviews,
-            'controlometer': controlometer, 
-            'average_rating': average_rating,
-         })
-         """"""
-      #case where there is only one system that the 
-      #game was reviewed for.
       else:
-         context.update({
-            'num_fresh': game.fresh_count(),
-            'num_rotten': game.rotten_count(),
-            'total_reviews': game.num_reviews(),
-            'controlometer': game.fake_controlometer(), 
-            'average_rating': game.curved_average(),
-         })
+         controlometer = 0
+         average_rating = 0
+
+      #used to return a random selection of (up to three) reviews.
+      random_reviews = []
+      if total_reviews != 0:
+         if total_reviews == 1:
+            random_sample = random.sample(list(reviews), 1)
+         elif total_reviews == 2:
+            random_reviews = random.sample(list(reviews), 2)
+         else:
+            random_reviews = random.sample(list(reviews), 3)
+
+      context.update({
+         'num_fresh': thumbs_up,
+         'num_rotten': thumbs_down,
+         'total_reviews': total_reviews,
+         'controlometer': controlometer, 
+         'average_rating': average_rating,
+         'random_reviews': random_reviews,
+      })
 
 
       return context
@@ -319,6 +340,21 @@ class ShowGameReviewsView(DetailView):
          if filter == 'rotten':
             reviews = reviews.filter(fresh_rotten=False)
       
+            #processes option to filter reviews by date published.
+      if 'date-range-low' in self.request.GET:
+         firstDate = self.request.GET['date-range-low']
+         if firstDate != '':
+            print(firstDate)
+            convertedDate = datetime.strptime(firstDate,"%Y-%m-%d").date()
+            reviews = reviews.filter(date_published__gte=convertedDate)
+         
+      if 'date-range-high' in self.request.GET:
+         lastDate = self.request.GET['date-range-high']
+         if lastDate != '':
+            print(lastDate)
+            convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
+            reviews = reviews.filter(date_published__lte=convertedDate)
+      
       #processes option to filter reviews based on the console.
       if 'console' in self.request.GET:
          systems = self.request.GET.getlist('console')
@@ -377,10 +413,64 @@ class CreateGameInfoView(LoginRequiredMixin, CreateView):
   
   def get_success_url(self):
      return reverse('all_games')
-  
 
 
+"""
+Used to update information about individual games. (Like adding a poster link
+or something.)
+"""
+class UpdateGameInfoView(LoginRequiredMixin, UpdateView):
+   form_class = UpdateGameInfoForm
+   template_name = 'newGameoMeter/update_game.html'
+   model = GameInfo 
+   context_object_name = 'game'
+
+   def form_valid(self,form):
+    '''
+    Handle the form submission to update the Game Info.
+    '''
+    print(f'UpdateGameInfoView: form.cleaned_data={form.cleaned_data}')
+    return super().form_valid(form)
+  
+   def get_success_url(self):
+      '''
+      Returns the URL to which we should be directed after the update.
+      '''
+      # get the GameInfo pk (NOT the GameInfo pk).
+      pk = self.kwargs.get('pk')
+      # get the ReviewInfo object.
+      game = GameInfo.objects.filter(pk=pk).first()
+      #reverse to show the GameInfo page.
+      return reverse('game_details',kwargs={'pk':pk})
   
 
+"""
+Used to update information about individual reviews (e.g. change the 
+fresh/rotten symbol.)
+"""
+class UpdateReviewInfoView(UpdateView):
+
+  form_class = UpdateReviewInfoForm
+  template_name = "newGameoMeter/update_review.html"
+  model = ReviewInfo
+  context_object_name = 'review'
+
+  def form_valid(self,form):
+    '''
+    Handle the form submission to update the Game Scores.
+    '''
+    print(f'UpdateReviewInfoView: form.cleaned_data={form.cleaned_data}')
+    return super().form_valid(form)
   
-  
+  def get_success_url(self):
+    '''
+    Returns the URL to which we should be directed after the update.
+    '''
+    # get the ReviewInfo pk (NOT the GameInfo pk).
+    pk = self.kwargs.get('pk')
+    # get the ReviewInfo object.
+    scores = ReviewInfo.objects.filter(pk=pk).first()
+    # get the GameInfo object.
+    info = scores.id_number
+    #reverse to show the GameInfo page.
+    return reverse('game_details',kwargs={'pk':info.pk})

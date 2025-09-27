@@ -345,7 +345,7 @@ def load_scraped_game_info():
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/sm64-ds-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/lego_sw_metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers

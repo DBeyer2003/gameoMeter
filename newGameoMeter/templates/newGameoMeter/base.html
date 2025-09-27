@@ -27,9 +27,18 @@
         
         <div class="search">
             <form action="{% url 'search_results' %}" method="get">
-            <input name="q" type="text" placeholder="Search Games">
+
+            <input name="q" type="text" placeholder="Search Games"> <input type="submit" class="search"> <br>
+                        
+            Newest to Oldest: <input type="radio" name="filters" value="newest"><br>
+            Highest Critics Rating: <input type="radio" name="filters" value="highest_critics"><br>
+            Lowest Critics Rating: <input type="radio" name="filters" value="lowest_critics"><br>
+            Highest Audience Rating: <input type="radio" name="filters" value="highest_audience"><br>
+            Lowest Audience Rating: <input type="radio" name="filters" value="lowest_audience"><br>
+            
             </form>
         </div>
+        
         
 
         <h1 class="title"><a class="title" href="{% url 'home' %}">Mock Game-O-Meter</a></h1>
@@ -48,5 +57,9 @@
         <!--Used to replace the squiggles with commas. -->
         
     </script>
+
+    {% block scripts %}
+
+    {% endblock scripts %}
 
 </html>

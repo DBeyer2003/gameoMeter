@@ -11,7 +11,9 @@ urlpatterns = [
   path(r'gameometer/game/<int:pk>', views.ShowGameDetailsView.as_view(), name="game_details"),
   path(r'gameometer/create_game', views.CreateGameInfoView.as_view(), name="create_game"),
   path(r'gameometer/game/<int:pk>/reviews', views.ShowGameReviewsView.as_view(), name="game_reviews"),
+  path(r'gameometer/game/<int:pk>/update_game', views.UpdateGameInfoView.as_view(), name="update_game"),
   path(r'gameometer/game/<int:pk>/update_scores', views.UpdateGameScoresView.as_view(), name="update_scores"),
+  path(r'gameometer/review/<int:pk>/update_review', views.UpdateReviewInfoView.as_view(), name="update_review"),
 
   #authentication URLS
   path('login/', auth_views.LoginView.as_view(template_name='newGameoMeter/login.html'), name='login'),

@@ -27,8 +27,14 @@
                 {% endfor %}
             {% endif %}
 
+            <!--Add a function to sort by dates here.-->
+            <input type="fromSlider" id="date-range-low" name="date-range-low" min="0" max="100">
+            <input type="toSlider" id="date-range-high" name="date-range-high" min="0" max="100">
+
 
             (BUTTON THAT FILTERS WITH WHATEVER CONSOLES THIS GAME IS ON)<br>
+
+            
 
             <input class="reviews" type="submit"><br>
         </form>
@@ -63,10 +69,11 @@
 
             {% if review.display_score != "No Score" %}
                 {{review.display_score}}
-            {% endif %}
+            {% endif %} <a style="text-align:right; font-size:10px" href="{% url 'update_review' review.pk %}">Change review info if needed.</a><br>
             
             <br>
             <br>
+            
         {% endfor %}
     {% endif %}
 

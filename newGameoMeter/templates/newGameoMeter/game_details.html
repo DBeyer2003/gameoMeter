@@ -3,10 +3,15 @@
 
 {% block content %}
 
+    {% if game.poster_link != None %} 
+        <img src="{{game.poster_link}}" width="120px"> <br>
+    {% else %}
+        <img src="{% static 'images/no-poster.jpg' %}" width="120px"> <br>
+    {% endif %}
 
-<img src="{{game.poster_link}}" width="120px"> <br>
     {{game.name}}<br>
 
+        <a href="{% url 'update_game' game.pk %}">UPDATE GAME INFO</a><br>
     {% if game.game_scores %}
         <a href="{% url 'update_scores' game.game_scores.pk %}">UPDATE SCORES</a>
     {% endif %}<br>
@@ -16,18 +21,18 @@
     {% if game.fake_controlometer %}
         <!--Only displays scores if there are at least five reviews.--> 
         {% if total_reviews >= 5 %}
-            {% if game.fake_controlometer > 74 %} 
+            {% if controlometer > 74 %} 
                 <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
-                {% if game.num_reviews >= 40 %}
+                {% if total_reviews >= 40 %}
                     <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
                 {% else %}                   
                     <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
                 {% endif %}
-                <!--The critical score info.-->
+
                 {{controlometer}}%<br>
                 {{average_rating}}/10<br>
                 <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
-            {% elif game.fake_controlometer >= 60 %}
+            {% elif controlometer >= 60 %}
                 {% if controlometer >= 60 %}
                     <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
                     {{controlometer}}%<br>
@@ -39,7 +44,6 @@
                     {{average_rating}}/10<br>
                     <progress class="rotten" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
                 {% endif %}
-                <!--The critical score info.-->
                 
             {% else %}
                 {% if controlometer >= 60 %}
@@ -53,9 +57,6 @@
                     {{average_rating}}/10<br>
                     <progress class="rotten" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
                 {% endif %}
-                <!--The critical score info.-->
-                {{controlometer}}%<br>
-                {{average_rating}}/10<br>
             {% endif %}
             
         <!--Case where there are not enough reviews for a score.-->
@@ -73,19 +74,24 @@
     </div>
 
     FILTER CONSOLES:
-    {% if game.filtered_consoles %}
+    
         <form action="{% url 'game_details' game.pk %}" method="get">
-            <input type="checkbox" name="console", value="All"> All Systems<br>
-            {% for console in game.filtered_consoles %}
-                <input type="checkbox" name="console", value="{{console}}"> {{console}}<br>
-            {% endfor %}
+            {% if game.filtered_consoles %}
+                <input type="checkbox" id="console" name="console", value="All"> All Systems<br>
+                {% for console in game.filtered_consoles %}
+                    <input type="checkbox" id="console" name="console", value="{{console}}"> {{console}}<br>
+                {% endfor %}
+            {% endif %}
             <!--Add a function to sort by dates here.-->
-            <input type="fromSlider" id="date-range" name="date-range" min="0" max="100">
-            <input type="toSlider" id="date-range" name="date-range" min="0" max="100">
+            <input type="fromSlider" id="date-range-low" name="date-range-low" min="0" max="100">
+            <input type="toSlider" id="date-range-high" name="date-range-high" min="0" max="100">
 
-            <input class="console" type="submit"><br>
+            <input type="submit"><br>
         </form>
-    {% endif %}
+        {% if latest_date %}
+            {{latest_date}}<br>
+        {% endif %}
+    
     <br>
 
     {% if game.game_scores %}
@@ -102,8 +108,14 @@
     <p id="consensus">Dobby has~~~~ freed his elf!</p>
     <br>
 
-
-    Critics' Consensus: <p id="consensus">{{game.game_scores.critics_consensus}}</p><br>
+    {% if total_reviews >= 20 %}
+        Critics' Consensus: <p id="consensus">{{game.game_scores.critics_consensus}}</p><br>
+    {% elif total_reviews >= 5%}
+        Critics' Consensus: No consensus yet.
+    {% else %}
+        
+    {% endif %}
+    
     <br>
     {% endif %}
    
@@ -113,10 +125,13 @@
     <br>
 
     {% if game.meta_bars %}
+        <div class="search-grid">
         {% for bar in game.meta_bars %}
-            <div class="bars" style="width: 40px; height: {{game.bar_length}}px; background-color: {{bar}};"></div>
-            
+        
+            <div class="bars" style="width: 20px; height: 80px; background-color: {{bar}};"></div>
+          
         {% endfor %}
+        </div> 
         {{game.game_scores.mock_mc}}
     {% endif %}
     <br>
@@ -131,7 +146,7 @@
         No reviews yet.
     {% else %}
         <br>
-        {% for review in game.three_random_reviews %}
+        {% for review in random_reviews %}
 
             {{review.publication}}, {{review.author}}
 
@@ -141,6 +156,7 @@
             
             <br>
             {{review.quote}}<br>
+            {{review.platform}}<br>
             
             {% if review.fresh_rotten == True %}
                 <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
@@ -171,6 +187,26 @@
 
 {% endblock %}
 
-<script src="{% static 'jsfunc.js' %}"></script>
-{% block script %}{% endblock %}
+<!--The script used to filter the review score(s) in real time.-->
+{% block scripts %}
+<script>
+    const num_fresh = "{{num_fresh}}"
+    const num_rotten = "{{num_rotten}}"
+    const total_reviews = "{{total_reviews}}"
+    const controlometer = "{{controlometer}}"
+    const average_rating = "{{average_rating}}"
+    console.log(num_fresh)
+    console.log(num_rotten)
+    console.log(total_reviews)
+    console.log(controlometer)
+    console.log(average_rating)
+
+    const console_filter = document.getElementById('console')
+    console.log(console_filter)
+
+    let filteredReviews = []
+
+
+</script>
+{% endblock scripts %}
 
