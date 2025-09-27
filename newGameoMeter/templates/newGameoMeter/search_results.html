@@ -7,18 +7,18 @@
     {% for g in games %}
         <div class="search-grid">
             <div>
-            {% if g.poster_link == None %}
-                <img src="{% static 'images/no-poster.jpg' %}" width="120px">
-            {% else %}
-                <img src="{{g.poster_link}}" width="120px">
-            {% endif %}
+                <a href="{% url 'game_details' g.pk %}">
+                {% if g.poster_link == None %}
+                    <img class="link" src="{% static 'images/no-poster.jpg' %}" width="120px">
+                {% else %}
+                    <img class="link" src="{{g.poster_link}}" width="120px">
+                {% endif %}
+                </a>
             </div>
 
             <div>
-                <p><a href="{% url 'game_details' g.pk %}">{{g.name}}</a>, {{g.publishers}}, {{g.developers}}, {{g.release_date}}</p>
-                ID: {{g.id_number}}<br>
-                PK: {{g.pk}}<br>
-
+                <p><a class="search-title" href="{% url 'game_details' g.pk %}">{{g.name}}</a></p>
+                <!--Displays score if available.-->
                 {% if g.fake_controlometer %} 
 
                     {% if g.fake_controlometer > 74 %} 
@@ -29,13 +29,13 @@
                             <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
                         {% endif %}
                         <!--The actual game score.-->
-                        {{g.fake_controlometer}}%
+                        <b>{{g.fake_controlometer}}%</b>
                     {% elif g.fake_controlometer >= 60 %}
                         <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
-                        {{g.fake_controlometer}}%
+                        <b>{{g.fake_controlometer}}%</b>
                     {% else %}
                         <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
-                        {{g.fake_controlometer}}%
+                        <b>{{g.fake_controlometer}}%</b>
 
                     {% endif %}
 
@@ -45,7 +45,6 @@
 
                 {% endif %}
 
-
                 {% if g.game_scores != None %}
 
                     {% if g.game_scores.user_percent > 59.0 %}
@@ -54,9 +53,18 @@
                         <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
                     {% endif %}
                     
-                    {{g.game_scores.user_percent}},
+                    <b>{{g.game_scores.user_percent}}%</b>,
 
-                {% endif %}
+                {% endif %}<br>
+
+                ID: {{g.id_number}}<br>
+                PK: {{g.pk}}<br>
+                <p>{{g.publishers}}, {{g.developers}}, {{g.release_date}}</p>
+
+                
+
+
+
             </div>
         </div>
         <br>
