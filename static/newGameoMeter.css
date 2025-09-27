@@ -26,8 +26,10 @@ div.search-grid {
     grid-template-columns: 1fr 1fr;
     gap: 30px;
     background-color:rgb(199, 157, 101);
-    width:70%;
+    width:50%;
     align-items:center;
+    padding:10px;
+    border-radius: 10px;
 
 }
 
@@ -42,11 +44,29 @@ h1.title {
     text-decoration: none;
 }
 
+/*Used to stylize the title link.*/
 a.title {
     text-decoration: none;
     color: inherit;
 }
 
+a.title:hover {
+    color:blue;
+    transition:0.2s;
+}
+
+/*General stylization for site links.*/
+a.search-title {
+    color: inherit;
+    font-size:20px;
+}
+
+a.search-title:hover {
+    color:blue;
+    transition:0.2s;
+}
+
+/* Creates effects for the site title.*/
 h1.title:hover {
     color:blue;
     transition:0.2s;
@@ -67,3 +87,4 @@ progress.rotten {
 progress.rotten::-webkit-progress-value {
     background-color: #018b0f;
 }
+
