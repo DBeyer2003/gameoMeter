@@ -21,7 +21,7 @@ class CreateGameInfoForm(forms.ModelForm):
   class Meta:
     model = GameInfo
     fields = ['id_number', 'slug', 'name', 'release_date', 'tba', 'website', 'platforms', 
-              'developers', 'genres', 'publishers', 'esrb_rating', 'poster_link', 'critics_score']
+              'developers', 'genres', 'publishers', 'esrb_rating', 'poster_link', 'critics_score','meta_curve']
 
 
 class UpdateGameInfoForm(forms.ModelForm):
@@ -30,7 +30,7 @@ class UpdateGameInfoForm(forms.ModelForm):
   class Meta:
     model = GameInfo
     fields = ['id_number', 'slug', 'name', 'release_date', 'tba', 'website', 'platforms', 
-              'developers', 'genres', 'publishers', 'esrb_rating', 'poster_link', 'critics_score']
+              'developers', 'genres', 'publishers', 'esrb_rating', 'poster_link', 'critics_score','meta_curve']
 
 
 class UpdateGameScoresForm(forms.ModelForm):

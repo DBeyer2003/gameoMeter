@@ -67,7 +67,8 @@ class GameInfo(models.Model):
   esrb_rating = models.TextField(blank=True, null=True)
   poster_link = models.URLField(blank=True, null=True)
   critics_score = models.TextField(blank=True, null=True)
-
+  #used to curve the metabar info taken from the ReviewInfo metascores.
+  meta_curve = models.IntegerField(blank=True, null=True, default='0', editable=True)
 
   #used to calculate the game scores scrated from Metacritic.
   def game_scores(self):
@@ -204,6 +205,12 @@ class GameInfo(models.Model):
       if review.platform in all_systems and review.platform not in current_systems:
         current_systems.append(review.platform)
         #print(review.platform)
+    #because the website doesn't like iOS stuff...
+    ios_reviews = ReviewInfo.objects.filter(id_number=self, platform__contains="iOS")
+    if len(ios_reviews) > 0:
+      current_systems.append(ios_reviews.first().platform)
+
+
     if len(current_systems) > 1:
       return current_systems
     else:
@@ -212,21 +219,33 @@ class GameInfo(models.Model):
   
   
   def bar_length(self):
-    metabars = MetaBars.objects.filter(id_number = self.id_number)
+    metabars = ReviewInfo.objects.filter(id_number = self,metascore__gte=0)
     if len(metabars) > 0:
-      length = float(len(metabars.first().score_list))
+      length = float(len(metabars))
+      print(length)
       return 200/length
   
   def meta_bars(self):
-    metabars = MetaBars.objects.filter(id_number = self.id_number)
+    #finds reviews with metacritic info.
+    reviews_with_meta = ReviewInfo.objects.filter(id_number = self,metascore__gte=0)
+    #print(len(reviews_with_meta))
     
-    if len(metabars) > 0:
+    
+    if len(reviews_with_meta) >= 4:
+      #used to store/sort the metascores per review.
+      
+      score_list = []
+      for review in reviews_with_meta:
+        #print("Review looks like", review.metascore)
+        score_list.append(review.metascore)
+      
+      score_list = sorted(score_list,reverse=True)
+
       red_hex = (255,0,0)
       yellow_hex = (255,255,0)
       green_hex = (0,176,80)
-      metabar = metabars.first()
       color_list = []
-      for value in metabar.score_list:
+      for value in score_list:
         
         #print(value)
         if int(value) <= 63:
@@ -241,10 +260,46 @@ class GameInfo(models.Model):
           b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
         hex_color = f'#{r:02X}{g:02X}{b:02X}'
         color_list.append(hex_color)
-
+      #print(color_list)
       return color_list
+      
     else:
       return None
+  
+  #the average of the metacritic scores with a custom curve.
+  def mock_mc(self):
+    #finds reviews with metacritic info.
+    reviews_with_meta = ReviewInfo.objects.filter(id_number = self,metascore__gte=0)
+    #print(len(reviews_with_meta))
+    
+    
+    if len(reviews_with_meta) > 0:
+      #calculates average rating:
+      numerator = 0.0
+      denominator = 0.0
+      for review in reviews_with_meta:
+        #case where the review metascore is in the green zone (75-100)
+        if review.metascore > 74:
+          numerator += float((float((float((float(review.metascore)-74.0)/26.0)*40.0))+60.0))
+        #case where the review metascore is in the yellow zone (50-74)
+        elif review.metascore <= 74 and review.metascore >= 50:
+          numerator += float((float((float((float(review.metascore)-49.0)/25.0))*21.0))+39.0)
+        #case where the review metascore is in the yellow zone (0-49).
+        else:
+          numerator += float(float((float(review.metascore)/49.0))/39.0)
+        denominator += 1
+      
+      denominator *= 100
+
+      
+      #returns score as ##/100, with metacurve attached.
+      if float(float(numerator)/float(denominator))*100 % 1 >= 0.5:
+        return math.ceil(float(float(numerator)/float(denominator))*100)+self.meta_curve
+      else:
+        return round(float(float(numerator)/float(denominator))*100)+self.meta_curve
+    else:
+      return None
+
 
 
   def __str__(self):
@@ -260,14 +315,22 @@ class ReviewInfo(models.Model):
   id_number = models.ForeignKey(GameInfo, on_delete=models.CASCADE)
   publication = models.TextField(blank=False)
   author = models.TextField(blank=False, null=True) 
-  #use the curved rating rather than the MC one.
+  #ADD HERE: the original Metascore, that will be curved down in accordance with
+  # the corresponding formulas, to give a Metascore per date. (if the metascore is
+  # negative, it means there wasn't a score provided, and will be excluded from the calculation.)
+  metascore = models.IntegerField(blank=False,null=True)
+  #use the curved rating for the gameoMeter rather than the MC one.
   rating = models.IntegerField(blank=False, null=True) 
+  #the score (if given) that is given by the actual review author.
   display_score = models.TextField(blank=True,null=True)
   fresh_rotten = models.BooleanField(blank=False)   
   date_published = models.DateField(blank=False)
   quote = models.TextField(blank=False)
   platform = models.TextField(blank=False)
   url_link = models.URLField(blank=True,null=True)
+  #used to determine if the score is being included in the metacritic info.
+  is_meta = models.BooleanField(blank=True,null=True)
+
 
     #checks if the link is to rottentomatoes, in which case it means that
   # there is no url link/
@@ -280,7 +343,7 @@ class ReviewInfo(models.Model):
 
 
   def __str__(self):
-    return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten}.'
+    return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten} with a metascore of {self.metascore}.'
   
   
 
@@ -345,7 +408,7 @@ def load_scraped_game_info():
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/lego_sw_metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/sonic-adventure-dx-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -371,9 +434,18 @@ def load_reviews():
       if fields[10] == "www.rottentomatoes.com":
         print('IT"S TIME TO FREAKING TOMATOMETER.')
       
+      is_meta = False
+      if "M" in fields[11]:
+        is_meta = True
+        print("WE FOUND IT, GOIES. It is", is_meta)
+        
+      else:
+        print("NOT META")
+      
 
-      #finds and deletes any duplicate reviews
+      #finds the corresponding game.
       game = GameInfo.objects.filter(id_number=fields[0]).first()
+
 
       
       #creates and saves the review info
@@ -382,6 +454,7 @@ def load_reviews():
         id_number = game, 
         publication = fields[1],
         author = fields[2],
+        metascore = fields[3],
         rating = fields[4],
         display_score = fields[5], 
         fresh_rotten = is_fresh,
@@ -389,6 +462,7 @@ def load_reviews():
         quote = fields[8], 
         platform = fields[9], 
         url_link = fields[10],
+        is_meta = is_meta,
       )
       review.save()
 

@@ -3,72 +3,75 @@
 {% load my_tags %}
 
 {% block content %}
+    <div class="search-content">
 
-    {% for g in games %}
-        <div class="search-grid">
-            <div>
-                <a href="{% url 'game_details' g.pk %}">
-                {% if g.poster_link == None %}
-                    <img class="link" src="{% static 'images/no-poster.jpg' %}" width="120px">
-                {% else %}
-                    <img class="link" src="{{g.poster_link}}" width="120px">
-                {% endif %}
-                </a>
-            </div>
+        {% for g in games %}
+            <div class="search-grid">
+                <div>
+                    <a href="{% url 'game_details' g.pk %}">
+                    {% if g.poster_link == None %}
+                        <img class="link" src="{% static 'images/no-poster.jpg' %}" width="120px">
+                    {% else %}
+                        <img class="link" src="{{g.poster_link}}" width="120px">
+                    {% endif %}
+                    </a>
+                </div>
 
-            <div>
-                <p><a class="search-title" href="{% url 'game_details' g.pk %}">{{g.name}}</a></p>
-                <!--Displays score if available.-->
-                {% if g.fake_controlometer %} 
+                <div style="background-color:rgb(232, 177, 177); width:100%; padding:5px;border-radius: 5px;">
+                    <p><a class="search-title" href="{% url 'game_details' g.pk %}">{{g.name}}</a></p>
+                    <!--Displays score if available.-->
+                    {% if g.fake_controlometer %} 
 
-                    {% if g.fake_controlometer > 74 %} 
-                        <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
-                        {% if g.num_reviews >= 40 %}
-                            <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
-                        {% else %}
+                        {% if g.fake_controlometer > 74 %} 
+                            <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
+                            {% if g.num_reviews >= 40 %}
+                                <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+                            {% else %}
+                                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                            {% endif %}
+                            <!--The actual game score.-->
+                            <b>{{g.fake_controlometer}}%</b>
+                        {% elif g.fake_controlometer >= 60 %}
                             <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                            <b>{{g.fake_controlometer}}%</b>
+                        {% else %}
+                            <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                            <b>{{g.fake_controlometer}}%</b>
+
                         {% endif %}
-                        <!--The actual game score.-->
-                        <b>{{g.fake_controlometer}}%</b>
-                    {% elif g.fake_controlometer >= 60 %}
-                        <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
-                        <b>{{g.fake_controlometer}}%</b>
+
                     {% else %}
-                        <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
-                        <b>{{g.fake_controlometer}}%</b>
+
+                        No Critics Score.
 
                     {% endif %}
 
-                {% else %}
+                    {% if g.game_scores != None %}
 
-                    No Critics Score.
+                        {% if g.game_scores.user_percent > 59.0 %}
+                            <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
+                        {% else %}
+                            <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
+                        {% endif %}
+                        
+                        <b>{{g.game_scores.user_percent}}%</b>,
 
-                {% endif %}
+                    {% endif %}<br>
 
-                {% if g.game_scores != None %}
+                    ID: {{g.id_number}}<br>
+                    PK: {{g.pk}}<br>
+                    <p>{{g.publishers}}, {{g.developers}}, {{g.release_date}}</p>
 
-                    {% if g.game_scores.user_percent > 59.0 %}
-                        <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
-                    {% else %}
-                        <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
-                    {% endif %}
                     
-                    <b>{{g.game_scores.user_percent}}%</b>,
-
-                {% endif %}<br>
-
-                ID: {{g.id_number}}<br>
-                PK: {{g.pk}}<br>
-                <p>{{g.publishers}}, {{g.developers}}, {{g.release_date}}</p>
-
-                
 
 
 
+                </div>
             </div>
-        </div>
-        <br>
-    {% endfor %}
+            <br>
+        {% endfor %}
+
+    </div>
 
     <!--Displays limited number of games per page.-->
     {% if is_paginated %}

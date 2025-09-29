@@ -4,7 +4,7 @@ from django.shortcuts import render
 
 # Create your views here.
 from django.shortcuts import render, redirect
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 import time
 import random
 from datetime import timedelta, date, datetime
@@ -56,7 +56,16 @@ class ShowAllGamesView(ListView):
 
     return context
 
-
+class SearchSuggestionsView(View):
+   """
+   Used to automatically generate suggestions that matches
+   the characters a user is typing.
+   """
+   def get(self):
+      query = self.request.GET.get('term','')
+      games = GameInfo.objects.filter(name__icontains=query)[:10]
+      suggestions = [game.name for game in games]
+      return JsonResponse(suggestions, safe=False)
 
 class SearchResultsView(ListView):
     model = GameInfo
@@ -69,11 +78,11 @@ class SearchResultsView(ListView):
         query = self.request.GET.get("q", '')
         # allows the search engine to find game titles, publishers and developers.
         games = GameInfo.objects.filter(
-            Q(name__icontains=query) | Q(publishers__icontains=query) | Q(developers__icontains=query) | Q(platforms__icontains=query)
+            Q(name__icontains=query)
         )
 
         non_games = GameInfo.objects.filter(
-            Q(name__icontains=query) | Q(publishers__icontains=query) | Q(developers__icontains=query) | Q(platforms__icontains=query)
+            Q(name__icontains=query)
         )
 
         
@@ -157,6 +166,7 @@ class SearchResultsView(ListView):
                 id_number__in=f_games
              )
              games.union(non_games)
+         
 
         return games
 
@@ -173,7 +183,7 @@ class ShowGameDetailsView(DetailView):
                    'Wii U', 'PlayStation 4', 'Xbox One', 'DS',
                    '3DS', 'PC', 'PSP', 'PlayStation 5',
                    'Nintendo Switch', 'PlayStation Vita',
-                   'iOS (iPhone/iPad)', 'iOS']
+                   'iOS', 'iOS']
 
    def get_context_data(self, *arg,**kwargs):
       context = super(ShowGameDetailsView,self).get_context_data(*arg,**kwargs)
@@ -182,7 +192,6 @@ class ShowGameDetailsView(DetailView):
       reviews = ReviewInfo.objects.filter(id_number=game)
       #, date_published__range=(2010-1-1, 2025-12-25)
       
-
       #processes option to filter the review scores based on the console.
       if 'console' in self.request.GET:
          #used to recursively filter the systems that reviews have been written for.
@@ -201,8 +210,9 @@ class ShowGameDetailsView(DetailView):
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
                else:
                   filtered_systems |= Q(platform__icontains = system)
-            
+
             reviews = reviews.filter(filtered_systems)
+
          
       #processes option to filter reviews by date published.
       if 'date-range-low' in self.request.GET:
@@ -265,12 +275,98 @@ class ShowGameDetailsView(DetailView):
       random_reviews = []
       if total_reviews != 0:
          if total_reviews == 1:
-            random_sample = random.sample(list(reviews), 1)
+            random_reviews = random.sample(list(reviews), 1)
          elif total_reviews == 2:
             random_reviews = random.sample(list(reviews), 2)
          else:
             random_reviews = random.sample(list(reviews), 3)
+      
+   
+      #finds reviews with metacritic info for the metascore.
+      reviews_with_meta = reviews.filter(metascore__gte=0,is_meta=True)
+      print(len(reviews_with_meta))
+      #used to calculate the metabar length.
+      bar_length = 0.0
+      if len(reviews_with_meta) >= 4:
+         length = float(len(reviews_with_meta))
+         print(length)
+         bar_length = 200.0/length
 
+      #used to calculate the colors for the metabar that will be displayed.
+      meta_bars = []
+      if len(reviews_with_meta) >= 4:
+      #used to store/sort the metascores per review.
+         
+         score_list = []
+         for review in reviews_with_meta:
+            #print("Review looks like", review.metascore)
+            score_list.append(review.metascore)
+            
+            score_list = sorted(score_list,reverse=True)
+
+            red_hex = (255,0,0)
+            yellow_hex = (255,255,0)
+            green_hex = (0,176,80)
+            color_list = []
+         for value in score_list:
+         
+            #print(value)
+            if int(value) <= 63:
+               ratio = value / 63 
+               r = 255
+               g = int((red_hex[1]*(1-ratio))+(yellow_hex[1]*(ratio)))
+               b = 0
+            else:
+               ratio = (value-63) / (37) 
+               r = int((yellow_hex[0]*(1-ratio))+(green_hex[0]*ratio))
+               g = int((yellow_hex[1]*(1-ratio))+(green_hex[1]*ratio))
+               b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
+            hex_color = f'#{r:02X}{g:02X}{b:02X}'
+            color_list.append(hex_color)
+         #print(color_list)
+         meta_bars = color_list
+
+      #used to calculate the metascore
+      uncurved_metascore = 0
+      if len(reviews_with_meta) >= 4:
+         print(len(reviews_with_meta))
+         #calculates average rating:
+         numerator = 0.0
+         denominator = float(100*len(reviews_with_meta))
+         for review in reviews_with_meta:
+            #case where the review metascore is in the green zone (75-100)
+            """"""
+            numerator += review.metascore
+
+         
+         #returns score as ##/100, with metacurve attached.
+         if float(float(numerator)/float(denominator))*100 % 1 >= 0.5:
+            uncurved_metascore = math.ceil(float(float(numerator)/float(denominator))*100)
+         else:
+            uncurved_metascore = round(float(float(numerator)/float(denominator))*100)
+      
+      #the metascore, curved.
+      curved_metascore = 0.0
+      #the green case (75-100)
+      if uncurved_metascore > 74:
+         curved_metascore = float((float((float((float(uncurved_metascore)-74.0)/26.0)*40.0))+60.0))
+      #the yellow case (50-74)
+      elif uncurved_metascore <= 74 and uncurved_metascore >= 50:
+         curved_metascore = float((float((float((float(uncurved_metascore)-49.0)/25.0))*21.0))+39.0)
+      else:
+         curved_metascore = float(float((float(uncurved_metascore)/49.0))/39.0)
+      
+      rounded_metascore = 0
+      #rounds the curved_metascore, adds the curve.
+      if curved_metascore % 1 >= 0.5:
+        rounded_metascore = math.ceil(curved_metascore)
+      else:
+        rounded_metascore = round(curved_metascore)
+      
+      if game.meta_curve != None:
+         rounded_metascore += game.meta_curve
+
+      
       context.update({
          'num_fresh': thumbs_up,
          'num_rotten': thumbs_down,
@@ -278,6 +374,9 @@ class ShowGameDetailsView(DetailView):
          'controlometer': controlometer, 
          'average_rating': average_rating,
          'random_reviews': random_reviews,
+         'metascore': rounded_metascore,
+         'bar_length': bar_length,
+         'meta_bars': meta_bars,
       })
 
 

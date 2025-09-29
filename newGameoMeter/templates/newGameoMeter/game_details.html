@@ -124,15 +124,18 @@
     <br>
     <br>
 
-    {% if game.meta_bars %}
-        <div class="search-grid">
-        {% for bar in game.meta_bars %}
+    {% if meta_bars %}
+        <div class="bar-grid">
+            {% for bar in meta_bars %}
+                <div class="bars" style="width: 20px; height: 80px; background-color: {{bar}};"></div>
+            
+            {% endfor %}
+        </div>
         
-            <div class="bars" style="width: 20px; height: 80px; background-color: {{bar}};"></div>
-          
-        {% endfor %}
-        </div> 
-        {{game.game_scores.mock_mc}}
+    {% endif %}
+
+    {% if metascore >= 0 %}
+        {{metascore}}
     {% endif %}
     <br>
 
