@@ -55,10 +55,18 @@ a.title:hover {
     transition:0.2s;
 }
 
+/*Used to align the objects on the search page.*/
+div.search-content {
+    align-items:center;
+    align-content: center;
+    align-self:center;
+}
+
 /*General stylization for site links.*/
 a.search-title {
     color: inherit;
     font-size:20px;
+    font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
 }
 
 a.search-title:hover {
@@ -88,3 +96,14 @@ progress.rotten::-webkit-progress-value {
     background-color: #018b0f;
 }
 
+/*Used to align the color bars for the meta-info. */
+div.bar-grid {
+    display: flex;
+
+
+}
+
+/*Used to stylize the meta bar.*/
+div.bars {
+    padding:0px;
+}
