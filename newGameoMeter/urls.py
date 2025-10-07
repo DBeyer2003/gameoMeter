@@ -13,6 +13,7 @@ urlpatterns = [
   path(r'gameometer/game/<int:pk>/reviews', views.ShowGameReviewsView.as_view(), name="game_reviews"),
   path(r'gameometer/game/<int:pk>/update_game', views.UpdateGameInfoView.as_view(), name="update_game"),
   path(r'gameometer/game/<int:pk>/update_scores', views.UpdateGameScoresView.as_view(), name="update_scores"),
+  path(r'gameometer/game/<int:pk>/score_chart', views.DisplayGameScoreChartView.as_view(), name="score_chart"),
   path(r'gameometer/review/<int:pk>/update_review', views.UpdateReviewInfoView.as_view(), name="update_review"),
 
   #authentication URLS

@@ -1,0 +1,57 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+
+{% block content %}
+
+<a href="{% url 'game_details' get_pk %}">Back to main page.</a>
+
+    <form action="{% url 'score_chart' get_pk %}" method="get">
+        
+        <!--Option to filter between all critics and Top Critics.-->
+        All Critics: <input type="radio" name="critic-type" value="all-critics"><br>
+        Top Critics Only: <input type="radio" name="critic-type" value="only-tc"><br>
+
+        {% if game.filtered_consoles %}
+            <input type="checkbox" id="console" name="console", value="All"> All Systems<br>
+            {% for console in game.filtered_consoles %}
+                <input type="checkbox" id="console" name="console", value="{{console}}"> {{console}}<br>
+            {% endfor %}
+        {% endif %}
+        <!--Add a function to sort by dates here.-->
+        <input type="fromSlider" id="date-range-low" name="date-range-low" min="0" max="100">
+        <input type="toSlider" id="date-range-high" name="date-range-high" min="0" max="100">
+
+        <input type="submit"><br>
+    </form>
+
+    {% if graph %}
+        <img src="data:image/png;base64, {{graph|safe}}"><br>
+    {% endif %}
+
+    {% for date, score_info in date_n_score.items %}
+        Date Tracked: {{date}}, 
+        {% if score_info.total_reviews >= 5 %}
+            {% if score_info.controlometer > 74 %}
+                <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
+                {% if score_info.total_reviews >= 40 %}
+                    <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+                {% else %}                   
+                    <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                {% endif %}
+            {% elif score_info.controlometer < 60 %}
+                <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+            {% else %}
+                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+            {% endif %}
+            {{score_info.controlometer}}%, 
+            Average Rating: {{score_info.average_rating}}/10, 
+            Total Reviews: {{score_info.total_reviews}}.  ||||||||
+        {% endif %}
+        {% if score_info.num_metareviews >= 4%}
+            Metascore: {{score_info.metascore}}, Based on {{score_info.num_metareviews}} Reviews.
+        {% endif %}
+        <br>
+    {% endfor%}
+
+{% endblock %}

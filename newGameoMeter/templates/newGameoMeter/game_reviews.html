@@ -4,14 +4,23 @@
 {% block content %}
 
 <img src="{{game.poster_link}}" width="120px"> <br>
+    {{top_critics}}<br>
     {{game.name}}<br><br>
-    <a href="{% url 'game_details' game.pk %}">Back to main game page.</a><br>
+
+    <a href="{% url 'game_details' game.pk %}">Back to main page.</a>
+
     {% if game_reviews == None %}
         No reviews yet.<br>
     {% else %}
 
         <form action="{% url 'game_reviews' game.pk %}" method="get">
+
             All Reviews: <input type="radio" name="f-r" value="all"><br>
+
+            <!--Option to filter between all critics and Top Critics.-->
+            All Critics: <input type="radio" name="critic-type" value="all-critics"><br>
+            Top Critics Only: <input type="radio" name="critic-type" value="only-tc"><br>
+            <!--Filter fresh and rotten.-->
             Fresh Only: <input type="radio" name="f-r" value="fresh"><br>
             Rotten ONly: <input type="radio" name="f-r" value="rotten"><br> 
 
@@ -33,8 +42,6 @@
 
 
             (BUTTON THAT FILTERS WITH WHATEVER CONSOLES THIS GAME IS ON)<br>
-
-            
 
             <input class="reviews" type="submit"><br>
         </form>

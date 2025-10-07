@@ -198,7 +198,7 @@ class GameInfo(models.Model):
                    'PlayStation 3', 'Xbox 360',
                    'Wii U', 'PlayStation 4', 'Xbox One',
                    '3DS', 'PC', 'PSP', 'PlayStation 5',
-                   'Nintendo Switch', 'PlayStation Vita','iOS',]
+                   'Nintendo Switch', 'PlayStation Vita','iOS', 'Mac']
     current_systems = []
     reviews = ReviewInfo.objects.filter(id_number=self).exclude(platform__contains="/")
     for review in reviews:
@@ -344,71 +344,13 @@ class ReviewInfo(models.Model):
 
   def __str__(self):
     return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten} with a metascore of {self.metascore}.'
-  
-  
 
-def load_scraped_game_info():
-  '''
-  Load the video game information from a CSV file.
-  '''
-
-  # delete all records
-  #GameInfo.objects.all().delete()
-
-  # open the file for reading one line at a time
-  filename = '/Users/DBeye/new_django_game/review_hub/game_info_alt.csv'
-  # open the file for reading
-  f = open(filename, encoding="utf8") 
-  # discard the first line containing headers
-  headers = f.readline()
-
-  
-
-  # go through the entire file one line at a time
-  for line in f:
-    
-    try:
-      #if len(GameInfo.objects.filter(id_number=fields[0])) > 0:
-      #  GameInfo.objects.filter(id_number=fields[0]).delete()
-      #split the CSV file into fields
-      fields = line.split(',')
-
-      bool = False
-      if fields[4] == "TRUE":
-        bool = True
-
-      age_rating = 'RP'
-      if fields[10] != '\n':
-        age_rating = fields[10]
-
-      #GameInfo.objects.filter(id_number=fields[0]).delete()
-    
-
-      #create an instance of the GameInfo object
-      result = GameInfo(
-        id_number = fields[0],
-        slug = fields[1],
-        name = fields[2],
-        release_date = fields[3],
-        tba = bool,
-        website = fields[5],
-        platforms = fields[6],
-        developers = fields[7],
-        genres = fields[8],
-        publishers = fields[9],
-        esrb_rating = age_rating,
-      )
-      result.save()
-    except:
-      print(f"EXCEPTION OCCURED: {fields}.")
-
-  print("Done.") 
 
 
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/sonic-adventure-dx-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/sonic-secret-rings-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -470,6 +412,73 @@ def load_reviews():
 
     except IOError as e:
       print(f"EXCEPTION {e} OCCURED: {fields}.")
+
+
+def load_extra_reviews():
+  # open the file for reading one line at a time
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-secret-rings-extra.csv"
+  # open the file for reading
+  f = open(filename,encoding="utf8") 
+  # discard the first line containing headers
+  headers = f.readline()
+
+
+  # go through the entire file one line at a time
+  for line in f:
+
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+      #determines whether review is fresh or rotten.
+      is_fresh = True
+      if fields[6] == 'R':
+        is_fresh = False
+      
+
+      if fields[2] == "N/A":
+        print("NO AUTHOR.")
+      if fields[5] == "No Score":
+        print("NO SCORE HERE.")
+      if fields[10] == "www.rottentomatoes.com":
+        print('IT"S TIME TO FREAKING TOMATOMETER.')
+      
+      is_meta = False
+      if "M" in fields[11]:
+        is_meta = True
+        print("WE FOUND IT, GOIES. It is", is_meta)
+        
+      else:
+        print("NOT META")
+      
+
+      #finds the corresponding game.
+      game = GameInfo.objects.filter(id_number=fields[0]).first()
+
+
+      
+      #creates and saves the review info
+      
+      review = ReviewInfo(
+        id_number = game, 
+        publication = fields[1],
+        author = fields[2],
+        metascore = fields[3],
+        rating = fields[4],
+        display_score = fields[5], 
+        fresh_rotten = is_fresh,
+        date_published = fields[7],
+        quote = fields[8], 
+        platform = fields[9], 
+        url_link = fields[10],
+        is_meta = is_meta,
+      )
+      review.save()
+
+      print(f"game {review.id_number} with publication {review.publication} is Done and is {review.fresh_rotten}ly Fresh.")
+
+    except IOError as e:
+      print(f"EXCEPTION {e} OCCURED: {fields}.")
+    
     
 
 def make_metabars():
@@ -582,3 +591,46 @@ def load_scores():
       print(f"EXCEPTION OCCURED: {fields}.")
 
   print("Done.") 
+
+def load_top_critics():
+  """
+  Used to create a list of top critics; so that the user can filter.
+  """
+
+  # open the file for reading one line at a time
+  filename = "/Users/DBeye/new_django_game/review_csvs/top-critic-list.csv"
+
+  # open the file for reading
+  f = open(filename) 
+  # discard the first line containing headers
+  headers = f.readline()
+  tc_list = []
+
+  # go through the entire file one line at a time
+  for line in f:
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+
+
+      
+      for critic in fields:
+        tc_list.append(critic)
+      
+
+    except:
+      print(f"EXCEPTION OCCURED: {fields}.")
+  
+  #print(tc_list)
+
+  mod_list = []
+  for publication in tc_list:
+    mod_pub = publication.replace("\n","")
+    mod_list.append(mod_pub)
+  
+  #print(mod_list)
+
+  return mod_list
+  
+  
+
