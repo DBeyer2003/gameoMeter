@@ -783,6 +783,8 @@ class DisplayGameScoreChartView(DetailView):
             # 70%. If so, then we'll turn off the CF symbol.
             if float(thumbs_up)/float(thumbs_up+thumbs_down) < 0.695:
                   is_cf = False
+         else:
+            is_cf = False
          
          
          cf_dict[review.date_published] = is_cf 
@@ -829,7 +831,7 @@ class DisplayGameScoreChartView(DetailView):
 
                #Above 70% and certified fresh for all reviews.
                print("WHAT IS THE SCORE RIGHT NOW????", float(thumbs_up)/float(thumbs_up+thumbs_down))
-               if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.695 and is_cf == True:
+               if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.695 and cf_dict[review.date_published] == True:
                   is_cf = True
                # Below 70% with filtered consoles.
                else:
@@ -992,7 +994,7 @@ class DisplayGameScoreChartView(DetailView):
       xReviews = [date_n_score[date]['total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       xDates = [date for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       y = [date_n_score[date]['controlometer'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
-      graph = get_plot(xReviews,xDates,y,cf_dict)
+      graph = get_plot(xReviews,xDates,y,cf_dict,game.name)
       #print("Graph looks like ", graph)
       """
       plt.plot(x, y)
@@ -1013,6 +1015,7 @@ def display_graph():
    buffer = BytesIO()
    #used to set format for buffered graph.
    plt.savefig(buffer, format='png')
+   """"""
    #sets course at beginning of stream.
    buffer.seek(0)
    image_png = buffer.getvalue()
@@ -1029,7 +1032,7 @@ def display_graph():
 def getImage(path):
    return OffsetImage(plt.imread(path, format="png"), zoom=.05)
 
-def get_plot(xReviews,xDates,y,cf_dict):
+def get_plot(xReviews,xDates,y,cf_dict,name):
    #uses anti-grain geometry to visualize the chart.
    plt.switch_backend('AGG')
    #set size of figure.
@@ -1044,6 +1047,11 @@ def get_plot(xReviews,xDates,y,cf_dict):
 
    plt.scatter(xReviews,y,alpha=0.8)
    
+   #used for displaying the individual scores
+   #on the chart; if the score shifts significantly
+   #over time (by, like, 5% or greater) then the 
+   #number will be displayed.
+   current_percent = 0
 
    fresh_rotten_list = []
    fig, ax = plt.subplots()
@@ -1060,12 +1068,15 @@ def get_plot(xReviews,xDates,y,cf_dict):
       else:
          ab = AnnotationBbox(getImage('static/images/rotten.png'), (x0, y0), frameon=False)
          ax.add_artist(ab)
+      #displays percentage every 10 reviews.
+      """
+      if abs(y0-current_percent) >= 5:
+         plt.text(x0,y0,y0,size=10)
+         current_percent = y0
+      """
+   #add dotted line for visual clarity.
    plt.plot(xReviews,y,linestyle='dotted',color='black')
    print(fresh_rotten_list)
-
-
-   
-
 
    #used to display the number of reviews on the graph.
    plt.xticks(np.arange(0,max(xReviews),10))
@@ -1079,6 +1090,7 @@ def get_plot(xReviews,xDates,y,cf_dict):
    #plt.xticks(rotation=45)
    plt.xlabel('number of reviews')
    plt.ylabel('score')
+   plt.title(name)
    #clean up the layout.
    plt.tight_layout()
    graph = display_graph()

@@ -22,10 +22,10 @@
                     <!--Displays score if available.-->
                     {% if g.fake_controlometer %} 
                         {% if g.fake_controlometer >= 60 %}
-                            <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                            <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
                             <b>{{g.fake_controlometer}}%</b>
                         {% else %}
-                            <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                            <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
                             <b>{{g.fake_controlometer}}%</b>
 
                         {% endif %}

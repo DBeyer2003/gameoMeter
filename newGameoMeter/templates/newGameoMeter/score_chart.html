@@ -28,27 +28,30 @@
     {% if graph %}
         <img src="data:image/png;base64, {{graph|safe}}"><br>
     {% endif %}
-
-    {% for date, score_info in date_n_score.items %}
-        Date Tracked: {{date}}, 
-        {% if score_info.total_reviews >= 5 %}
-            <!--Checks if the certified fresh logo is marked; if it is, then the review is guaranteed to
-            have at least 40 reviews.-->
-            {% if score_info.is_cf == True %}
-                <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
-            {% elif score_info.controlometer < 60 %}
-                <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
-            {% else %}
-                <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+    <!--Button to hide/show the info for each ate.-->
+    <button onclick="showDateInfo()">Show Reviews</button>
+    <div id="chartReviews"  style="display:none">
+        {% for date, score_info in date_n_score.items %}
+            Date Tracked: {{date}}, 
+            {% if score_info.total_reviews >= 5 %}
+                <!--Checks if the certified fresh logo is marked; if it is, then the review is guaranteed to
+                have at least 40 reviews.-->
+                {% if score_info.is_cf == True %}
+                    <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
+                {% elif score_info.controlometer < 60 %}
+                    <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
+                {% else %}
+                    <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+                {% endif %}
+                {{score_info.controlometer}}%, 
+                Average Rating: {{score_info.average_rating}}/10, 
+                Total Reviews: {{score_info.total_reviews}}.  ||||||||
             {% endif %}
-            {{score_info.controlometer}}%, 
-            Average Rating: {{score_info.average_rating}}/10, 
-            Total Reviews: {{score_info.total_reviews}}.  ||||||||
-        {% endif %}
-        {% if score_info.num_metareviews >= 4%}
-            Metascore: {{score_info.metascore}}, Based on {{score_info.num_metareviews}} Reviews.
-        {% endif %}
-        <br>
-    {% endfor%}
+            {% if score_info.num_metareviews >= 4%}
+                Metascore: {{score_info.metascore}}, Based on {{score_info.num_metareviews}} Reviews.
+            {% endif %}
+            <br>
+        {% endfor%}
+    </div>
 
 {% endblock %}

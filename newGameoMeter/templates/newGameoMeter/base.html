@@ -1,7 +1,3 @@
-{% load static %}
-
-
-
 
 <!DOCTYPE html>
 <html>
@@ -15,8 +11,10 @@
 
 
     <head>
+        {% load static %}
         <title>Mock Game-O-Meter</title>
         <link rel="stylesheet" href="{% static 'newGameoMeter.css' %}">
+        <script src="{% static 'gameometer.js' %}"></script>
     </head>
 
     <button onclick="myFunction()">Click me!</button>
@@ -51,8 +49,5 @@
 
     </body>
 
-    {% block scripts %}
-
-    {% endblock scripts %}
 
 </html>
