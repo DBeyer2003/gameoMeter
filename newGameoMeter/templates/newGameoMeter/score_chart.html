@@ -32,17 +32,14 @@
     {% for date, score_info in date_n_score.items %}
         Date Tracked: {{date}}, 
         {% if score_info.total_reviews >= 5 %}
-            {% if score_info.controlometer > 74 %}
-                <!--Case to see if there is more than 40 reviews total; including unfiltered consoles.-->
-                {% if score_info.total_reviews >= 40 %}
-                    <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
-                {% else %}                   
-                    <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
-                {% endif %}
+            <!--Checks if the certified fresh logo is marked; if it is, then the review is guaranteed to
+            have at least 40 reviews.-->
+            {% if score_info.is_cf == True %}
+                <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
             {% elif score_info.controlometer < 60 %}
-                <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
             {% else %}
-                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
             {% endif %}
             {{score_info.controlometer}}%, 
             Average Rating: {{score_info.average_rating}}/10, 

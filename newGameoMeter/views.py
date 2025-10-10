@@ -74,6 +74,47 @@ class SearchSuggestionsView(View):
       suggestions = [game.name for game in games]
       return JsonResponse(suggestions, safe=False)
 
+#used to determine if game between 70-74% in search results is Certified Fresh or
+#not, based on patterns in which reviews were added.
+def is_search_cf(game):
+   #number of reviews. (Order reviews from earliest to newest.)
+   reviews = ReviewInfo.objects.order_by("date_published")
+   total_reviews = len(reviews) 
+   total_fresh = len(reviews.filter(fresh_rotten=True))
+   total_rotten = len(reviews.filter(fresh_rotten=False))
+   #is above 75% or below 70%, it can be assumed that the overall score is not
+   #certified Fresh.
+   if float(float(total_fresh)/float(total_reviews)) >= 74.5:
+      return False
+   elif float(float(total_fresh)/float(total_reviews)) < 69.5:
+      return False 
+   else:
+      #used to calculate the percentage of thumbs_up reviews.
+      thumbs_up = 0 
+      #used to calculate the percentage of thumbs_down reviews.
+      thumbs_down = 0
+
+      #case where there exists reviews.
+      for review in reviews:
+         #used to calculate the percentage of positive to negative
+         if review.fresh_rotten == True:
+            thumbs_up += 1 
+         if review.fresh_rotten == False:
+            thumbs_down += 1
+         
+         #checks if we have enough reviews (40) to turn on the CF symbol.
+         if (thumbs_up+thumbs_down) >= 40:
+         #if is_cf isn't turned on yet, we'll check if we have 40 total reviews,
+         # and if it >=75%. If true, then we'll turn the CF symbol on.
+            print(float(thumbs_up)/float(thumbs_up+thumbs_down))
+            if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.745:
+                  is_cf = True
+            # If the cf symbol IS already on, then we'll check if we've fallen under
+            # 70%. If so, then we'll turn off the CF symbol.
+            if float(thumbs_up)/float(thumbs_up+thumbs_down) < 0.695:
+                  is_cf = False
+      return is_cf
+
 class SearchResultsView(ListView):
     model = GameInfo
     template_name = 'newGameoMeter/search_results.html'
@@ -174,7 +215,7 @@ class SearchResultsView(ListView):
              )
              games.union(non_games)
          
-
+        
         return games
 
 class ShowGameDetailsView(DetailView):
@@ -198,10 +239,11 @@ class ShowGameDetailsView(DetailView):
 
       
 
-      reviews = ReviewInfo.objects.filter(id_number=game)
+      reviews = ReviewInfo.objects.filter(id_number=game).order_by("date_published")
       #, date_published__range=(2010-1-1, 2025-12-25)
       
-
+      #store these reviews for extra filtering later.
+      modible_reviews = reviews
          
       #processes option to filter reviews by date published.
       if 'date-range-low' in self.request.GET:
@@ -218,6 +260,7 @@ class ShowGameDetailsView(DetailView):
             convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
             reviews = reviews.filter(date_published__lte=convertedDate)
       
+      
       #pre-calculation to determine if the game is Certified Fresh or not. This includes
       #all reviews, not just top critics ones, which is why we're handling this case
       #before filtering out the top critics if needed. We also don't need the average
@@ -226,19 +269,39 @@ class ShowGameDetailsView(DetailView):
       #though that will be handled in the HTML file.
       
       is_cf = False
-      
-      if len(reviews) >= 40:
-         is_cf_score = float(float(len(reviews.filter(fresh_rotten=True))) / float(len(reviews)))*100
-         if (is_cf_score) % 1 >= 0.5: 
-            is_cf_score = math.ceil(is_cf_score)
-         else:
-            is_cf_score = round(is_cf_score)
-         print("WHAT IS THE CF SCORE: ", is_cf_score, "AND IS IT CF? ", is_cf)
+      #used to determine the dates at which the cf_symbol is displayed; this is useful for cases where the 
+      #filters are turned on, such as Consoles or Top Critics.
+      cf_dict = {}
+      is_cf = False
+      #number of reviews.
+      total_reviews = len(reviews) 
+      #used to calculate the percentage of thumbs_up reviews.
+      thumbs_up = 0 
+      #used to calculate the percentage of thumbs_down reviews.
+      thumbs_down = 0
+
+      #case where there exists reviews.
+      for review in reviews:
+         #used to calculate the percentage of positive to negative
+         if review.fresh_rotten == True:
+            thumbs_up += 1 
+         if review.fresh_rotten == False:
+            thumbs_down += 1
          
-         if is_cf_score >= 75:
-            is_cf = True
-         else:
-            is_cf = False
+         #checks if we have enough reviews (40) to turn on the CF symbol.
+         if (thumbs_up+thumbs_down) >= 40:
+         #if is_cf isn't turned on yet, we'll check if we have 40 total reviews,
+         # and if it >=75%. If true, then we'll turn the CF symbol on.
+            print(float(thumbs_up)/float(thumbs_up+thumbs_down))
+            if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.745:
+                  is_cf = True
+            # If the cf symbol IS already on, then we'll check if we've fallen under
+            # 70%. If so, then we'll turn off the CF symbol.
+            if float(thumbs_up)/float(thumbs_up+thumbs_down) < 0.695:
+                  is_cf = False
+         
+         
+         cf_dict[review.date_published] = is_cf 
       
 
       #processes option to filter the review scores based on the console.
@@ -262,10 +325,31 @@ class ShowGameDetailsView(DetailView):
 
             reviews = reviews.filter(filtered_systems)
             #if the reviews for this console are significantly lower than any other system, then the Certified Fresh symbol shall be removed.
-            if is_cf == True:
-               if float(float(len(reviews.filter(fresh_rotten=True))) / float(len(reviews)))*100 < 74.5:
-                  is_cf = False
-      
+            """"""
+         
+            #We need to filter the reviews a second time, since the individual
+            # console scores might be different..
+            thumbs_up = 0 
+            #used to calculate the percentage of thumbs_down reviews.
+            thumbs_down = 0
+            for review in reviews:
+               #used to calculate the percentage of positive to negative
+               if review.fresh_rotten == True:
+                  thumbs_up += 1 
+               if review.fresh_rotten == False:
+                  thumbs_down += 1
+               
+               #We need to filter the CF-into a second time if the consoles are 
+               #filtered.
+               if (thumbs_up+thumbs_down) >= 40:
+                  #Above 70% and certified fresh for all reviews.
+                  if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.695 and is_cf == True:
+                     is_cf = True
+                  # Below 70% with filtered consoles.
+                  else:
+                     is_cf = False
+
+               cf_dict[review.date_published] = is_cf 
       
       #used to mark the top critics.
       #makes the top_critics list to filter the publications for the games' score.
@@ -278,6 +362,7 @@ class ShowGameDetailsView(DetailView):
          critic_type = self.request.GET['critic-type']
          if critic_type == 'only-tc':
             reviews = reviews.filter(filtered_critics)
+      
 
       #number of reviews.
       total_reviews = len(reviews) 
@@ -302,6 +387,14 @@ class ShowGameDetailsView(DetailView):
          
          #used to calculate the average rating.
          numerator += review.rating 
+         
+         # If the cf symbol IS already on, then we'll check if we've fallen under
+         # 70%. If so, then we'll turn off the CF symbol.
+         review_date = review.date_published
+         if float(thumbs_up)/float(thumbs_up+thumbs_down) < 0.695:
+            is_cf = False
+         else:
+            is_cf = cf_dict[review_date]
       
       
       if total_reviews != 0:
@@ -659,6 +752,43 @@ class DisplayGameScoreChartView(DetailView):
       date_n_score = dict()
       #order from earliest to latest.
       ordered_reviews = reviews.order_by("date_published")
+
+      #used to determine the dates at which the cf_symbol is displayed; this is useful for cases where the 
+      #filters are turned on, such as Consoles or Top Critics.
+      cf_dict = {}
+      is_cf = False
+      #number of reviews.
+      total_reviews = len(ordered_reviews) 
+      #used to calculate the percentage of thumbs_up reviews.
+      thumbs_up = 0 
+      #used to calculate the percentage of thumbs_down reviews.
+      thumbs_down = 0
+
+      #case where there exists reviews.
+      for review in ordered_reviews:
+         #used to calculate the percentage of positive to negative
+         if review.fresh_rotten == True:
+            thumbs_up += 1 
+         if review.fresh_rotten == False:
+            thumbs_down += 1
+         
+         #checks if we have enough reviews (40) to turn on the CF symbol.
+         if (thumbs_up+thumbs_down) >= 40:
+         #if is_cf isn't turned on yet, we'll check if we have 40 total reviews,
+         # and if it >=75%. If true, then we'll turn the CF symbol on.
+            print(float(thumbs_up)/float(thumbs_up+thumbs_down))
+            if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.745:
+                  is_cf = True
+            # If the cf symbol IS already on, then we'll check if we've fallen under
+            # 70%. If so, then we'll turn off the CF symbol.
+            if float(thumbs_up)/float(thumbs_up+thumbs_down) < 0.695:
+                  is_cf = False
+         
+         
+         cf_dict[review.date_published] = is_cf 
+      
+         
+         
       
       #checks if console filters are applied.
       #processes option to filter the review scores based on the console.
@@ -681,14 +811,43 @@ class DisplayGameScoreChartView(DetailView):
                   filtered_systems |= Q(platform__icontains = system)
 
             ordered_reviews = ordered_reviews.filter(filtered_systems)
+
+            #We need to filter the reviews a second time, since the individual
+            # console scores might be different..
+            thumbs_up = 0 
+            #used to calculate the percentage of thumbs_down reviews.
+            thumbs_down = 0
+            for review in ordered_reviews:
+               #used to calculate the percentage of positive to negative
+               if review.fresh_rotten == True:
+                  thumbs_up += 1 
+               if review.fresh_rotten == False:
+                  thumbs_down += 1
+               
+               #We need to filter the CF-into a second time if the consoles are 
+               #filtered.
+
+               #Above 70% and certified fresh for all reviews.
+               print("WHAT IS THE SCORE RIGHT NOW????", float(thumbs_up)/float(thumbs_up+thumbs_down))
+               if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.695 and is_cf == True:
+                  is_cf = True
+               # Below 70% with filtered consoles.
+               else:
+                  is_cf = False
+
+               cf_dict[review.date_published] = is_cf 
+               print("NEW CF_DICT UPDATE WITH CONSOLE FILTERS: ", cf_dict)  
+            
       
       
       #use to check if there are any top critic publications within the total critics.
+      only_tc = False
       if 'critic-type' in self.request.GET:
          filtered_critics = Q()
          critic_type = self.request.GET['critic-type']
          if critic_type == 'only-tc':
             #makes the top_critics list to filter the publications for the games' score.
+            only_tc = True
             tc_list = load_top_critics()
             for top_critic in tc_list:
                filtered_critics |= Q(publication__iexact = top_critic)
@@ -721,6 +880,8 @@ class DisplayGameScoreChartView(DetailView):
       meta_numerator = 0
       meta_denominator = 0
       final_metascore = 0
+      #turns on the fresh-rotten-certifiedFresh symbol.
+      is_cf = False
       #increment through the reviews.
       for review in ordered_reviews:
          #checks if this review is the same date as the current date; if it is, we'll iterate on the 
@@ -749,7 +910,16 @@ class DisplayGameScoreChartView(DetailView):
             average_rating = math.ceil(float(float(numerator)/float(denominator))*100) / 10
          else:
             average_rating = round(float(float(numerator)/float(denominator))*10,1)
-
+         
+         #uses the dictionary from earlier to determine if the game is currently 
+         #certified Fresh or not.
+         if review_date in cf_dict:
+            if only_tc == True or controlometer >= 70:
+               is_cf = cf_dict[review_date]
+            else:
+               is_cf = False
+         else:
+            is_cf = False
          
          #used to calculate metascore.
          uncurved_metascore = 0
@@ -803,7 +973,7 @@ class DisplayGameScoreChartView(DetailView):
             #print("THIS IS THE SAME DATE.")
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
-                                          'metascore':final_metascore,'num_metareviews':num_metareviews}
+                                          'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf}
          #case where we create a new nested dictionary for a new date.
          else:
             #check to make sure that the prior date_n_score value is there.
@@ -816,12 +986,13 @@ class DisplayGameScoreChartView(DetailView):
             #finally, we continue adding reviews to the dictionary as normal.
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
-                                          'metascore':final_metascore,'num_metareviews':num_metareviews}
+                                          'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf}
       
       # Create the visual graph.
-      x = [date_n_score[date]['total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xReviews = [date_n_score[date]['total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xDates = [date for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       y = [date_n_score[date]['controlometer'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
-      graph = get_plot(x,y)
+      graph = get_plot(xReviews,xDates,y,cf_dict)
       #print("Graph looks like ", graph)
       """
       plt.plot(x, y)
@@ -856,9 +1027,9 @@ def display_graph():
 #used to display fresh, rotten and Certified Fresh symbols for
 #score graph.
 def getImage(path):
-   return OffsetImage(plt.imread(path),zoom=0.05,alpha=1)
+   return OffsetImage(plt.imread(path, format="png"), zoom=.05)
 
-def get_plot(x,y):
+def get_plot(xReviews,xDates,y,cf_dict):
    #uses anti-grain geometry to visualize the chart.
    plt.switch_backend('AGG')
    #set size of figure.
@@ -871,20 +1042,25 @@ def get_plot(x,y):
    #plots the chart with Fresh, Certified Fresh or Rotten symbols
    #based on the score.
 
-   plt.scatter(x,y,alpha=0.8)
-   plt.plot(x,y,linestyle='dotted',color='black')
+   plt.scatter(xReviews,y,alpha=0.8)
+   
 
    fresh_rotten_list = []
-   for x0, y0 in zip(x,y):
-      #CERTIFIED FRESH case.
-      if y0 >= 75 and x0 >= 40:
-         fresh_rotten_list.append('static/images/certified-fresh.jpg')
-      #FRESH CASE.
+   fig, ax = plt.subplots()
+   for x0, xDate, y0 in zip(xReviews,xDates,y):
+      #check if the game is certified fresh or not.
+      if cf_dict[xDate] == True:
+         ab = AnnotationBbox(getImage('static/images/certified-fresh.png'), (x0, y0), frameon=False)
+         ax.add_artist(ab)
+      #check if the game is merely fresh.
       elif y0 >= 60:
-         fresh_rotten_list.append('static/images/fresh.jpg')
+         ab = AnnotationBbox(getImage('static/images/fresh.png'), (x0, y0), frameon=False)
+         ax.add_artist(ab)
       #ROTTEN CASE.
       else:
-         fresh_rotten_list.append('static/images/rotten.jpg')
+         ab = AnnotationBbox(getImage('static/images/rotten.png'), (x0, y0), frameon=False)
+         ax.add_artist(ab)
+   plt.plot(xReviews,y,linestyle='dotted',color='black')
    print(fresh_rotten_list)
 
 
@@ -892,7 +1068,7 @@ def get_plot(x,y):
 
 
    #used to display the number of reviews on the graph.
-   plt.xticks(np.arange(0,max(x),10))
+   plt.xticks(np.arange(0,max(xReviews),10))
    #used to display the year values on the x-axis.
    #plt.xticks(np.arange(min_year,max_year,1))
    #sets the percentage range (0,100) for plot, as

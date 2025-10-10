@@ -350,7 +350,7 @@ class ReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/sonic-secret-rings-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers

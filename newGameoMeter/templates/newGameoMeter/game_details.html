@@ -25,20 +25,20 @@
             <!--If ALL CRITICS score is 75% or higher, the Certified Fresh logo will also display for the 
             top critics, regardless of what the score is.-->
             {% if is_cf == True %}
-                <img src="{% static 'images/certified-fresh.jpg' %}" width="20px" height="20px">
+                <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
                 {{controlometer}}%<br>
                 {{average_rating}}/10<br>
                 <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
             {% else %}
                 <!--The score will be fresh if it is 60% or higher.-->
                 {% if controlometer >= 60 %}
-                    <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                    <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
                     {{controlometer}}%<br>
                     {{average_rating}}/10<br>
                     <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
                 <!--The score will be rotten if it is below-->
                 {% else %}
-                    <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                    <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
                     {{controlometer}}%<br>
                     {{average_rating}}/10<br>
                     <progress class="rotten" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
@@ -153,9 +153,9 @@
             {{review.platform}}<br>
             
             {% if review.fresh_rotten == True %}
-                <img src="{% static 'images/fresh.jpg' %}" width="20px" height="20px">
+                <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
             {% else %}
-                <img src="{% static 'images/rotten.jpg' %}" width="20px" height="20px">
+                <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
             {% endif %}
 
             <!--Links to review if available.-->
