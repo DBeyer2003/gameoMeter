@@ -32,25 +32,35 @@
     <button onclick="showDateInfo()">Show Reviews</button>
     <div id="chartReviews"  style="display:none">
         {% for date, score_info in date_n_score.items %}
-            Date Tracked: {{date}}, 
-            {% if score_info.total_reviews >= 5 %}
+            <form id="filtered-main" action="{% url 'game_details' get_pk %}" method="get" target="_blank">
+
+                {% for system in score_info.system_list %}
+                    <input type="hidden" id="console" name="console" value="{{system}}"> 
+                {% endfor %}
+
+                - Date Tracked: <input type="submit" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
+            </form> 
+            
                 <!--Checks if the certified fresh logo is marked; if it is, then the review is guaranteed to
                 have at least 40 reviews.-->
-                {% if score_info.is_cf == True %}
-                    <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
-                {% elif score_info.controlometer < 60 %}
-                    <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
-                {% else %}
-                    <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+                {% if score_info.total_reviews >= 5 %}
+                    {% if score_info.is_cf == True %}
+                        <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
+                    {% elif score_info.controlometer < 60 %}
+                        <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
+                    {% else %}
+                        <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+                    {% endif %}
+                    {{score_info.controlometer}}%, 
+                    Average Rating: {{score_info.average_rating}}/10,   
                 {% endif %}
-                {{score_info.controlometer}}%, 
-                Average Rating: {{score_info.average_rating}}/10, 
-                Total Reviews: {{score_info.total_reviews}}.  ||||||||
+
+                Total Reviews: {{score_info.total_reviews}}.
+            
+            {% if score_info.num_metareviews >= 4 %}
+                  |||||||| Metascore: {{score_info.metascore}}, Based on {{score_info.num_metareviews}} Reviews.
             {% endif %}
-            {% if score_info.num_metareviews >= 4%}
-                Metascore: {{score_info.metascore}}, Based on {{score_info.num_metareviews}} Reviews.
-            {% endif %}
-            <br>
+            <br><br>
         {% endfor%}
     </div>
 

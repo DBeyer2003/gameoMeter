@@ -36,17 +36,14 @@
 
                     {% endif %}
 
-                    {% if g.game_scores != None %}
-
-                        {% if g.game_scores.user_percent > 59.0 %}
-                            <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
+                    {% if g.user_rating != None %}
+                        {% if g.user_rating > 59 %}
+                            <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
                         {% else %}
-                            <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
+                            <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
                         {% endif %}
-                        
-                        <b>{{g.game_scores.user_percent}}%</b>,
-
                     {% endif %}<br>
+
 
                     ID: {{g.id_number}}<br>
                     PK: {{g.pk}}<br>

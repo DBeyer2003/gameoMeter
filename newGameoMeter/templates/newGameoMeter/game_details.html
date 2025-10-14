@@ -2,82 +2,148 @@
 {% load static %}
 
 {% block content %}
-
+    <div class="game-info-grid">
     {% if game.poster_link != None %} 
         <img src="{{game.poster_link}}" width="120px"> <br>
     {% else %}
         <img src="{% static 'images/no-poster.jpg' %}" width="120px"> <br>
     {% endif %}
 
+    <div class="title-n-numbers">
     {{game.name}}<br>
 
-        <a href="{% url 'update_game' game.pk %}">UPDATE GAME INFO</a><br>
+        <div class="score-info">
+            
+            <div class="critics-info">
+                <!--If there are more than 0 reviews, we will display the number of fresh/rotten reviews 
+                even if there is no score.-->
+                {% if total_reviews > 0 %}
+                    <!--Only displays scores if there are at least five reviews.--> 
+                    {% if total_reviews >= 5 %}
+                        <!--If ALL CRITICS score is 75% or higher, the Certified Fresh logo will also display for the 
+                        top critics, regardless of what the score is.-->
+                        {% if is_cf == True %}
+                            <img class="tomato-main" src="{% static 'images/certified-fresh.png' %}">
+                            <b>{{controlometer}}% </b><br>
+                                Average Rating: {{average_rating}}/10<br>
+                                <!--Used to track the number of reviews.-->
+                            
+                                Total Reviews: {{total_reviews}}<br>
+                                Fresh: {{num_fresh}} | Rotten {{num_rotten}}
+                                <br>
+                            <div class="bar-n-consensus">
+                                <progress class="fresh" value="{{controlometer}}" max="100"> </progress>
+                                <p id="consensus">Critics' Consensus: {{game.game_scores.critics_consensus}}</p>
+                            </div>
+                            
+                            <br>
+                        {% else %}
+                            <!--The score will be fresh if it is 60% or higher.-->
+                            {% if controlometer >= 60 %}
+                                <img class="tomato-main" src="{% static 'images/fresh.png' %}">
+                                <b>{{controlometer}}% </b><br>
+                                Average Rating: {{average_rating}}/10<br>
+                                <!--Used to track the number of reviews.-->
+                            
+                                Total Reviews: {{total_reviews}}<br>
+                                Fresh: {{num_fresh}} | Rotten {{num_rotten}}
+                                <br>
+
+                                <div class="bar-n-consensus">
+                                    <progress class="fresh" value="{{controlometer}}" max="100"> </progress>
+                                    {% if total_reviews >= 20 %}
+                                        <p id="consensus">Critics' Consensus: {{game.game_scores.critics_consensus}}</p>
+                                    {% else %}
+                                        <p id="consensus">No consensus yet.</p>
+                                    {% endif %}
+                                </div>
+                                
+                                
+                                <br>
+                            <!--The score will be rotten if it is below-->
+                            {% else %}
+                                <img class="tomato-main" src="{% static 'images/rotten.png' %}">
+                                <b>{{controlometer}}% </b><br>
+                                Average Rating: {{average_rating}}/10<br>
+                                <!--Used to track the number of reviews.-->
+                            
+                                Total Reviews: {{total_reviews}}<br>
+                                Fresh: {{num_fresh}} | Rotten {{num_rotten}}
+                                <br>
+
+                                <div class="bar-n-consensus">
+                                    <progress class="rotten" value="{{controlometer}}" max="100"> </progress>
+                                    {% if total_reviews >= 20 %}
+                                        <p id="consensus">Critics' Consensus: {{game.game_scores.critics_consensus}}</p>
+                                    {% else %}
+                                        <p id="consensus">No consensus yet.</p>
+                                    {% endif %}<br>
+                                </div>
+                                
+                                <br>
+                            {% endif %}
+                        {% endif %}
+                    
+                    
+                    <!--Case where there are not enough reviews for a score.-->
+                    {% else %}
+                        No Score Yet.<br>
+                    {% endif %}
+
+                    
+                    <br><br>
+                    
+
+                {% else %}
+                    No Score Yet.<br>
+                {% endif %}
+                
+            </div>
+
+            <div class="user-info">
+                {% if user_percent >= 0 %}
+                    {% if user_percent > 59.0 %}
+                        <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
+                    {% else %}
+                        <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
+                    {% endif %}
+
+                    {{user_percent}}%<br>
+                    {{user_rating}}<br>
+                {% endif %}
+            </div>
+        </div>
+    
+    </div>
+    
+    </div>
+    {% if total_reviews %}
+        <a href="{% url 'score_chart' game.pk %}">SEE SCORE CHART</a><br>
+    {% endif %}
+    <a href="{% url 'update_game' game.pk %}">UPDATE GAME INFO</a><br>
     {% if game.game_scores %}
         <a href="{% url 'update_scores' game.game_scores.pk %}">UPDATE SCORES</a>
     {% endif %}<br>
 
-    <div class="score-info">
-    
-    {% if game.fake_controlometer %}
-        <!--Only displays scores if there are at least five reviews.--> 
-        {% if total_reviews >= 5 %}
-            <a href="{% url 'score_chart' game.pk %}">SEE SCORE CHART</a><br>
-            <!--If ALL CRITICS score is 75% or higher, the Certified Fresh logo will also display for the 
-            top critics, regardless of what the score is.-->
-            {% if is_cf == True %}
-                <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
-                {{controlometer}}%<br>
-                {{average_rating}}/10<br>
-                <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
-            {% else %}
-                <!--The score will be fresh if it is 60% or higher.-->
-                {% if controlometer >= 60 %}
-                    <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
-                    {{controlometer}}%<br>
-                    {{average_rating}}/10<br>
-                    <progress class="fresh" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
-                <!--The score will be rotten if it is below-->
-                {% else %}
-                    <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
-                    {{controlometer}}%<br>
-                    {{average_rating}}/10<br>
-                    <progress class="rotten" value="{{controlometer}}" max="100"> {{controlometer}}% </progress><br>
-                {% endif %}
-            {% endif %}
-            
-        <!--Case where there are not enough reviews for a score.-->
-        {% else %}
-            No Score Yet.<br>
-        {% endif %}
-        <!--Used to track the number of reviews.-->
-        {{total_reviews}} reviews.<br>
-        Fresh: {{num_fresh}} | Rotten {{num_rotten}}
-        <br><br>
-
-    {% else %}
-        No Score Yet.<br>
-    {% endif %}
-    </div>
-
     FILTER CONSOLES:
     
         <form action="{% url 'game_details' game.pk %}" method="get">
-            <!--Option to filter between all critics and Top Critics.-->
-            All Critics: <input type="radio" name="critic-type" value="all-critics"><br>
-            Top Critics Only: <input type="radio" name="critic-type" value="only-tc"><br>
+                <!--Option to filter between all critics and Top Critics.-->
+                All Critics: <input type="radio" name="critic-type" value="all-critics"><br>
+                Top Critics Only: <input type="radio" name="critic-type" value="only-tc"><br>
 
-            <!--Option to filter based on the consoles that reviews have been published for.-->
-            {% if game.filtered_consoles %}
-                <input type="checkbox" id="console" name="console", value="All"> All Systems<br>
-                {% for console in game.filtered_consoles %}
-                    <input type="checkbox" id="console" name="console", value="{{console}}"> {{console}}<br>
-                {% endfor %}
-            {% endif %}
-            <!--Add a function to sort by dates here.-->
-            <input type="fromSlider" id="date-range-low" name="date-range-low" min="0" max="100">
-            <input type="toSlider" id="date-range-high" name="date-range-high" min="0" max="100">
+                <!--Option to filter based on the consoles that reviews have been published for.-->
+                {% if game.filtered_consoles %}
+                    <input type="checkbox" id="console" name="console", value="All">All Systems<br>
+                    {% for console in game.filtered_consoles %}
+                        <input type="checkbox" id="console" name="console" value="{{console}}"> {{console}}<br>
+                    {% endfor %}
+                {% endif %}
+                <!--Add a function to sort by dates here.-->
+                <input type="fromSlider" id="date-range-low" name="date-range-low" min="0" max="100">
+                <input type="toSlider" id="date-range-high" name="date-range-high" min="0" max="100">
 
-            <input type="submit"><br>
+                <input type="submit"><br>
         </form>
         {% if latest_date %}
             {{latest_date}}<br>
@@ -85,16 +151,7 @@
     
     <br>
 
-    {% if game.game_scores %}
-        {% if game.game_scores.user_percent > 59.0 %}
-            <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
-        {% else %}
-            <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
-        {% endif %}
     
-
-        {{game.game_scores.user_percent}}<br>
-        {{game.game_scores.user_rating}}<br>
 
     <p id="consensus">Dobby has~~~~ freed his elf!</p>
     <br>
@@ -108,7 +165,7 @@
     {% endif %}
     
     <br>
-    {% endif %}
+
    
 
     <br>

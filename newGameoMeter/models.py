@@ -110,9 +110,39 @@ class GameInfo(models.Model):
           thumbs_up += 1 
       #converts to float to get percentage
       if (float(float(thumbs_up)/float(total_reviews))*100) % 1 >= 0.5: 
+        #print(self.name, (float(float(thumbs_up)/float(total_reviews))*100))
         return math.ceil((float(float(thumbs_up)/float(total_reviews))*100))
       else:
+        #print(self.name, (float(float(thumbs_up)/float(total_reviews))*100))
         return round((float(float(thumbs_up)/float(total_reviews))*100))
+  
+  #used to calculate user_rating (largely for search-engines or any other function
+  #that doesn't require specifics (e.g. dates); those will be handled in the views
+  #section.)
+  def user_rating(self):
+    user_reviews = UserReviewInfo.objects.filter(game=self)
+    #keeps tracks of scores and number of reviews.
+    #print(len(user_reviews))
+    if len(user_reviews) == 0:
+      return None 
+    else:
+      numerator = 0 
+      denominator = 0
+      for review in user_reviews:
+        if review.rating >= 7:
+          numerator += 1
+        denominator += 1
+      #print("The score should be: ", float(numerator)/float(denominator))
+      #converts to float to get percentage
+      if (float(float(numerator)/float(denominator))*100) % 1 >= 0.5: 
+        print(self.name, (float(float(numerator)/float(denominator))*100))
+        return math.ceil((float(float(numerator)/float(denominator))*100))
+      
+      else:
+        print(self.name, float(float(numerator)/float(denominator))*100)
+        return round((float(float(numerator)/float(denominator))*100))
+
+    
   
   def fresh_count(self):
   #filters reviews by id_number.
@@ -216,8 +246,7 @@ class GameInfo(models.Model):
     else:
       return None
   
-  
-  
+
   def bar_length(self):
     metabars = ReviewInfo.objects.filter(id_number = self,metascore__gte=0)
     if len(metabars) > 0:
@@ -345,12 +374,29 @@ class ReviewInfo(models.Model):
   def __str__(self):
     return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten} with a metascore of {self.metascore}.'
 
+#stores information for user reviews to return as Audience score.
+""""""
+class UserReviewInfo(models.Model):
+  '''
+  Stores the information for each user review.
+  '''
+  rating = models.IntegerField(blank=False) 
+  date_published = models.DateField(blank=False)
+  user = models.TextField(blank=False) 
+  #this will be used to determine if the review was published by an actual user 
+  #or not; user reviews will be marked as -1. (Handle later.)
+  is_user = models.IntegerField(blank=False) 
+  platform = models.TextField(blank=False)
+  game = models.ForeignKey(GameInfo, on_delete=models.CASCADE)
 
+  def __str__(self):
+    return f'The review for game {self.game.name} with a score of {self.rating} and published by user {self.user} is now in da house.'
+  
 
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/sonic-adventure-dx-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -416,7 +462,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-secret-rings-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-adventure-dx-extra.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -478,6 +524,41 @@ def load_extra_reviews():
 
     except IOError as e:
       print(f"EXCEPTION {e} OCCURED: {fields}.")
+
+def load_user_scores():
+  '''
+  Loads user scores for display.
+  '''
+
+  # open the file for reading one line at a time
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-gamefaqs.csv"
+  # open the file for reading
+  f = open(filename,encoding="utf8") 
+  # discard the first line containing headers
+  headers = f.readline()
+
+  #one line at a time.
+  for line in f:
+
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+      #finds the corresponding game.
+      game = GameInfo.objects.filter(id_number=fields[5]).first()
+      #determines whether review is fresh or rotten.
+      user_review = UserReviewInfo(
+        rating=fields[0],
+        date_published=fields[1],
+        user=fields[2], 
+        is_user=fields[3], 
+        platform=fields[4],
+        game=game
+      )
+      user_review.save()
+      #print(user_review)
+    except IOError as e:
+      print(f"EXCEPTION {e} OCCURED: {fields}.")
+
     
     
 

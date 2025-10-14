@@ -106,7 +106,6 @@ def is_search_cf(game):
          if (thumbs_up+thumbs_down) >= 40:
          #if is_cf isn't turned on yet, we'll check if we have 40 total reviews,
          # and if it >=75%. If true, then we'll turn the CF symbol on.
-            print(float(thumbs_up)/float(thumbs_up+thumbs_down))
             if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.745:
                   is_cf = True
             # If the cf symbol IS already on, then we'll check if we've fallen under
@@ -132,8 +131,6 @@ class SearchResultsView(ListView):
         non_games = GameInfo.objects.filter(
             Q(name__icontains=query)
         )
-
-        
 
         if 'filters' in self.request.GET:
            #filter by title.
@@ -240,6 +237,10 @@ class ShowGameDetailsView(DetailView):
       
 
       reviews = ReviewInfo.objects.filter(id_number=game).order_by("date_published")
+
+      #calculates the user review score+average rating.
+      user_reviews = UserReviewInfo.objects.filter(game=game)
+
       #, date_published__range=(2010-1-1, 2025-12-25)
       
       #store these reviews for extra filtering later.
@@ -249,16 +250,16 @@ class ShowGameDetailsView(DetailView):
       if 'date-range-low' in self.request.GET:
          firstDate = self.request.GET['date-range-low']
          if firstDate != '':
-            print(firstDate)
             convertedDate = datetime.strptime(firstDate,"%Y-%m-%d").date()
             reviews = reviews.filter(date_published__gte=convertedDate)
+            user_reviews = user_reviews.filter(date_published__gte=convertedDate)
          
       if 'date-range-high' in self.request.GET:
          lastDate = self.request.GET['date-range-high']
          if lastDate != '':
-            print(lastDate)
             convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
             reviews = reviews.filter(date_published__lte=convertedDate)
+            user_reviews = user_reviews.filter(date_published__gte=convertedDate)
       
       
       #pre-calculation to determine if the game is Certified Fresh or not. This includes
@@ -292,7 +293,6 @@ class ShowGameDetailsView(DetailView):
          if (thumbs_up+thumbs_down) >= 40:
          #if is_cf isn't turned on yet, we'll check if we have 40 total reviews,
          # and if it >=75%. If true, then we'll turn the CF symbol on.
-            print(float(thumbs_up)/float(thumbs_up+thumbs_down))
             if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.745:
                   is_cf = True
             # If the cf symbol IS already on, then we'll check if we've fallen under
@@ -353,6 +353,7 @@ class ShowGameDetailsView(DetailView):
       
       #used to mark the top critics.
       #makes the top_critics list to filter the publications for the games' score.
+      only_tc = False
       filtered_critics = Q()
       tc_list = load_top_critics()
       for top_critic in tc_list:
@@ -361,6 +362,7 @@ class ShowGameDetailsView(DetailView):
       if 'critic-type' in self.request.GET:
          critic_type = self.request.GET['critic-type']
          if critic_type == 'only-tc':
+            only_tc = True
             reviews = reviews.filter(filtered_critics)
       
 
@@ -391,10 +393,12 @@ class ShowGameDetailsView(DetailView):
          # If the cf symbol IS already on, then we'll check if we've fallen under
          # 70%. If so, then we'll turn off the CF symbol.
          review_date = review.date_published
-         if float(thumbs_up)/float(thumbs_up+thumbs_down) < 0.695:
+         if float(thumbs_up)/float(thumbs_up+thumbs_down) < 0.695 and only_tc == False:
             is_cf = False
          else:
             is_cf = cf_dict[review_date]
+      
+      
       
       
       if total_reviews != 0:
@@ -417,21 +421,19 @@ class ShowGameDetailsView(DetailView):
       random_reviews = []
       if total_reviews != 0:
          if total_reviews == 1:
-            random_reviews = random.sample(list(reviews), 1)
+            random_reviews = random.sample(list(reviews.exclude(quote="Quotation forthcoming.")), 1)
          elif total_reviews == 2:
-            random_reviews = random.sample(list(reviews), 2)
+            random_reviews = random.sample(list(reviews.exclude(quote="Quotation forthcoming.")), 2)
          else:
-            random_reviews = random.sample(list(reviews), 3)
+            random_reviews = random.sample(list(reviews.exclude(quote="Quotation forthcoming.")), 3)
       
    
       #finds reviews with metacritic info for the metascore.
       reviews_with_meta = reviews.filter(metascore__gte=0,is_meta=True)
-      #print(len(reviews_with_meta))
       #used to calculate the metabar length.
       bar_length = 0.0
       if len(reviews_with_meta) >= 4:
          length = float(len(reviews_with_meta))
-         #print(length)
          bar_length = 200.0/length
 
       #used to calculate the colors for the metabar that will be displayed.
@@ -441,7 +443,6 @@ class ShowGameDetailsView(DetailView):
          
          score_list = []
          for review in reviews_with_meta:
-            #print("Review looks like", review.metascore)
             score_list.append(review.metascore)
             
             score_list = sorted(score_list,reverse=True)
@@ -452,7 +453,6 @@ class ShowGameDetailsView(DetailView):
             color_list = []
          for value in score_list:
          
-            #print(value)
             if int(value) <= 63:
                ratio = value / 63 
                r = 255
@@ -465,13 +465,11 @@ class ShowGameDetailsView(DetailView):
                b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
             hex_color = f'#{r:02X}{g:02X}{b:02X}'
             color_list.append(hex_color)
-         #print(color_list)
          meta_bars = color_list
 
       #used to calculate the metascore
       uncurved_metascore = 0
       if len(reviews_with_meta) >= 4:
-         #print(len(reviews_with_meta))
          #calculates average rating:
          numerator = 0.0
          denominator = float(100*len(reviews_with_meta))
@@ -508,6 +506,36 @@ class ShowGameDetailsView(DetailView):
          rounded_metascore += game.meta_curve
 
       
+      #keeps tracks of scores and number of reviews.
+      #print(len(user_reviews))
+      user_percent = 0
+      user_rating = 0
+      if len(user_reviews) == 0:
+         user_percent = -5
+      else:
+         percent_numerator = 0 
+         rating_numerator = 0
+         denominator = 0
+         for review in user_reviews:
+            #reviews from 7-10 are considered Fresh.
+            if review.rating >= 7:
+               percent_numerator += 1 
+            #adds to calculate average rating.
+            rating_numerator += review.rating 
+            denominator += 1
+            #converts to float to get percentage.
+            if (float(float(percent_numerator)/float(denominator)) * 100) % 1 >= 0.5:
+               user_percent = math.ceil(float(float(percent_numerator)/float(denominator)) * 100)
+            #print("The score should be: ", float(numerator)/float(denominator))
+            #converts to float to get average rating.
+            if (float(float(rating_numerator)/float(denominator))*10) % 1 >= 0.5: 
+               #print(self.name, (float(float(numerator)/float(denominator))*10))
+               user_rating = math.ceil((float(float(rating_numerator)/float(denominator))*10))
+
+            else:
+               #print(self.name, float(float(numerator)/float(denominator))*10)
+               user_rating = round((float(float(rating_numerator)/float(denominator))*10))
+      
       context.update({
          'num_fresh': thumbs_up,
          'num_rotten': thumbs_down,
@@ -519,6 +547,8 @@ class ShowGameDetailsView(DetailView):
          'bar_length': bar_length,
          'meta_bars': meta_bars,
          'is_cf': is_cf,
+         'user_percent':user_percent,
+         'user_rating':user_rating,
       })
 
 
@@ -583,7 +613,6 @@ class ShowGameReviewsView(DetailView):
             for top_critic in tc_list:
                filtered_critics |= Q(publication__iexact = top_critic)
             reviews = reviews.filter(filtered_critics)
-            print(reviews.exclude(publication__in=filtered_critics))
 
       #checks if there is a filter to sort between fresh-rotten reviews.
       if 'f-r' in self.request.GET:
@@ -597,14 +626,12 @@ class ShowGameReviewsView(DetailView):
       if 'date-range-low' in self.request.GET:
          firstDate = self.request.GET['date-range-low']
          if firstDate != '':
-            print(firstDate)
             convertedDate = datetime.strptime(firstDate,"%Y-%m-%d").date()
             reviews = reviews.filter(date_published__gte=convertedDate)
          
       if 'date-range-high' in self.request.GET:
          lastDate = self.request.GET['date-range-high']
          if lastDate != '':
-            print(lastDate)
             convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
             reviews = reviews.filter(date_published__lte=convertedDate)
       
@@ -776,7 +803,6 @@ class DisplayGameScoreChartView(DetailView):
          if (thumbs_up+thumbs_down) >= 40:
          #if is_cf isn't turned on yet, we'll check if we have 40 total reviews,
          # and if it >=75%. If true, then we'll turn the CF symbol on.
-            print(float(thumbs_up)/float(thumbs_up+thumbs_down))
             if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.745:
                   is_cf = True
             # If the cf symbol IS already on, then we'll check if we've fallen under
@@ -792,7 +818,9 @@ class DisplayGameScoreChartView(DetailView):
          
          
       
-      #checks if console filters are applied.
+      #stores systems in a list.
+      system_list = []
+      
       #processes option to filter the review scores based on the console.
       if 'console' in self.request.GET:
          #used to recursively filter the systems that reviews have been written for.
@@ -801,6 +829,8 @@ class DisplayGameScoreChartView(DetailView):
          #If the All checkbox is checked, every review will be returned anyways.
          if 'All' not in systems:
             for system in systems:
+               #store system in list for use later.
+               system_list.append(system)
                #ensures that the xbox 360 isn't included in the filter for the
                #original xbox.
                if system == 'Xbox':
@@ -811,6 +841,7 @@ class DisplayGameScoreChartView(DetailView):
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
                else:
                   filtered_systems |= Q(platform__icontains = system)
+               print(filtered_systems)
 
             ordered_reviews = ordered_reviews.filter(filtered_systems)
 
@@ -830,7 +861,6 @@ class DisplayGameScoreChartView(DetailView):
                #filtered.
 
                #Above 70% and certified fresh for all reviews.
-               print("WHAT IS THE SCORE RIGHT NOW????", float(thumbs_up)/float(thumbs_up+thumbs_down))
                if float(thumbs_up)/float(thumbs_up+thumbs_down) >= 0.695 and cf_dict[review.date_published] == True:
                   is_cf = True
                # Below 70% with filtered consoles.
@@ -838,10 +868,9 @@ class DisplayGameScoreChartView(DetailView):
                   is_cf = False
 
                cf_dict[review.date_published] = is_cf 
-               print("NEW CF_DICT UPDATE WITH CONSOLE FILTERS: ", cf_dict)  
-            
       
-      
+      print(system_list)
+
       #use to check if there are any top critic publications within the total critics.
       only_tc = False
       if 'critic-type' in self.request.GET:
@@ -935,7 +964,6 @@ class DisplayGameScoreChartView(DetailView):
                meta_numerator += review.metascore
                #add 100 to denominator because each score is calculated out of 100.
                meta_denominator += 100
-               #print("Uncurved metascore right now is ", float(float(meta_numerator)/float(meta_denominator)))
                #returns score as ##/100, with metacurve attached.
                if float(float(meta_numerator)/float(meta_denominator))*100 % 1 >= 0.5:
                   uncurved_metascore = math.ceil(float(float(meta_numerator)/float(meta_denominator))*100)
@@ -967,19 +995,17 @@ class DisplayGameScoreChartView(DetailView):
                   final_metascore += game.meta_curve
          #case where there is nothing to add.
          else:
-            #print("Uncurved metascore right now is ", uncurved_metascore)
             final_metascore += 0
 
          #case where the current review has the same date as the prior review, and will be added to its nested dictionary.
          if current_date == review_date:
-            #print("THIS IS THE SAME DATE.")
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
-                                          'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf}
+                                          'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
+                                          'formatted_date':current_date,'system_list':system_list}
          #case where we create a new nested dictionary for a new date.
          else:
             #check to make sure that the prior date_n_score value is there.
-            #print("Current date is ", current_date, " with values of ", date_n_score[current_date])
             #first, we create a new dictionary for the new date within the nested dictionary,
             #which will include all of the reviews from the prior dictionary.
             date_n_score[review_date] = date_n_score[current_date]
@@ -988,14 +1014,14 @@ class DisplayGameScoreChartView(DetailView):
             #finally, we continue adding reviews to the dictionary as normal.
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
-                                          'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf}
+                                          'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
+                                          'formatted_date':current_date,'system_list':system_list}
       
       # Create the visual graph.
       xReviews = [date_n_score[date]['total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       xDates = [date for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       y = [date_n_score[date]['controlometer'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       graph = get_plot(xReviews,xDates,y,cf_dict,game.name)
-      #print("Graph looks like ", graph)
       """
       plt.plot(x, y)
       plt.xlim(first_date,current_date)
@@ -1014,7 +1040,7 @@ class DisplayGameScoreChartView(DetailView):
 def display_graph():
    buffer = BytesIO()
    #used to set format for buffered graph.
-   plt.savefig(buffer, format='png')
+   plt.savefig(buffer, format='png', dpi=120)
    """"""
    #sets course at beginning of stream.
    buffer.seek(0)
@@ -1055,38 +1081,50 @@ def get_plot(xReviews,xDates,y,cf_dict,name):
 
    fresh_rotten_list = []
    fig, ax = plt.subplots()
-   for x0, xDate, y0 in zip(xReviews,xDates,y):
-      #check if the game is certified fresh or not.
-      if cf_dict[xDate] == True:
-         ab = AnnotationBbox(getImage('static/images/certified-fresh.png'), (x0, y0), frameon=False)
-         ax.add_artist(ab)
-      #check if the game is merely fresh.
-      elif y0 >= 60:
-         ab = AnnotationBbox(getImage('static/images/fresh.png'), (x0, y0), frameon=False)
-         ax.add_artist(ab)
-      #ROTTEN CASE.
-      else:
-         ab = AnnotationBbox(getImage('static/images/rotten.png'), (x0, y0), frameon=False)
-         ax.add_artist(ab)
-      #displays percentage every 10 reviews.
-      """
-      if abs(y0-current_percent) >= 5:
-         plt.text(x0,y0,y0,size=10)
-         current_percent = y0
-      """
-   #add dotted line for visual clarity.
-   plt.plot(xReviews,y,linestyle='dotted',color='black')
-   print(fresh_rotten_list)
+   #only displays info if there is enough info to chart.
+   if len(y) >= 0:
+      for x0, xDate, y0 in zip(xReviews,xDates,y):
+         #check if the game is certified fresh or not.
+         if cf_dict[xDate] == True:
+            ab = AnnotationBbox(getImage('static/images/certified-fresh.png'), (x0, y0), frameon=False)
+            ax.add_artist(ab)
+         #check if the game is merely fresh.
+         elif y0 >= 60:
+            ab = AnnotationBbox(getImage('static/images/fresh.png'), (x0, y0), frameon=False)
+            ax.add_artist(ab)
+         #ROTTEN CASE.
+         else:
+            ab = AnnotationBbox(getImage('static/images/rotten.png'), (x0, y0), frameon=False)
+            ax.add_artist(ab)
+         #displays percentage every 10 reviews.
+         """
+         if abs(y0-current_percent) >= 5:
+            plt.text(x0,y0,y0,size=10)
+            current_percent = y0
+         """
+      #add dotted line for visual clarity.
+      plt.plot(xReviews,y,linestyle='dotted',color='black')
 
-   #used to display the number of reviews on the graph.
-   plt.xticks(np.arange(0,max(xReviews),10))
-   #used to display the year values on the x-axis.
-   #plt.xticks(np.arange(min_year,max_year,1))
-   #sets the percentage range (0,100) for plot, as
-   #well as the percentage locations on the graph.
-   plt.yticks(np.arange(0,110,10))
-   #used to display grid lines.
-   plt.grid()
+      #used to display the number of reviews on the graph.
+      plt.xticks(np.arange(0,max(xReviews),10))
+      #used to display the year values on the x-axis.
+      #plt.xticks(np.arange(min_year,max_year,1))
+      #sets the percentage range (0,100) for plot, as
+      #well as the percentage locations on the graph.
+      plt.yticks(np.arange(0,110,10))
+      #used to display grid lines.
+      plt.grid()
+   else:
+      #used to display the number of reviews on the graph.
+      plt.xticks(np.arange(0,110,10))
+      #used to display the year values on the x-axis.
+      #plt.xticks(np.arange(min_year,max_year,1))
+      #sets the percentage range (0,100) for plot, as
+      #well as the percentage locations on the graph.
+      plt.yticks(np.arange(0,110,10))
+      #used to display grid lines.
+      plt.grid()
+
    #plt.xticks(rotation=45)
    plt.xlabel('number of reviews')
    plt.ylabel('score')
