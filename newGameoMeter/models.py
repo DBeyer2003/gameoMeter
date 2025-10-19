@@ -10,6 +10,7 @@ from django.dispatch import receiver
 import pandas as pd
 import random
 
+
 # Create your models here.
 
 
@@ -135,11 +136,11 @@ class GameInfo(models.Model):
       #print("The score should be: ", float(numerator)/float(denominator))
       #converts to float to get percentage
       if (float(float(numerator)/float(denominator))*100) % 1 >= 0.5: 
-        print(self.name, (float(float(numerator)/float(denominator))*100))
+        #print(self.name, (float(float(numerator)/float(denominator))*100))
         return math.ceil((float(float(numerator)/float(denominator))*100))
       
       else:
-        print(self.name, float(float(numerator)/float(denominator))*100)
+        #print(self.name, float(float(numerator)/float(denominator))*100)
         return round((float(float(numerator)/float(denominator))*100))
 
     
@@ -251,7 +252,7 @@ class GameInfo(models.Model):
     metabars = ReviewInfo.objects.filter(id_number = self,metascore__gte=0)
     if len(metabars) > 0:
       length = float(len(metabars))
-      print(length)
+      #print(length)
       return 200/length
   
   def meta_bars(self):
@@ -390,7 +391,7 @@ class UserReviewInfo(models.Model):
   game = models.ForeignKey(GameInfo, on_delete=models.CASCADE)
 
   def __str__(self):
-    return f'The review for game {self.game.name} with a score of {self.rating} and published by user {self.user} is now in da house.'
+    return f'The review for game {self.game.name} with a score of {self.rating} and published by user {self.user} on {self.date_published} is now in da house.'
   
 
 
@@ -531,7 +532,7 @@ def load_user_scores():
   '''
 
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-gamefaqs.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-mc-user.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -555,7 +556,7 @@ def load_user_scores():
         game=game
       )
       user_review.save()
-      #print(user_review)
+      print(user_review)
     except IOError as e:
       print(f"EXCEPTION {e} OCCURED: {fields}.")
 
@@ -574,17 +575,17 @@ def make_metabars():
     game = meta_info.iloc[i].copy()
     game_id = game['id']
     game_list = game['s_lists']
-    print(game_id)
+    #print(game_id)
     
     game_list = json.loads(game_list)
-    print(type(game_list))
+    #print(type(game_list))
 
 
     results = MetaBars(
       id_number = game_id, 
       score_list = game_list
     )
-    print("Results are :",results.score_list)
+    #print("Results are :",results.score_list)
 
     results.save()
 

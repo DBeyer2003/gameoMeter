@@ -56,6 +56,18 @@
                 {% endif %}
 
                 Total Reviews: {{score_info.total_reviews}}.
+
+                {% if score_info.total_user_ratings >= 10 %}
+                    {% if score_info.user_percent >= 60 %}
+                        <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px">
+                    {% else %}
+                        <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px">
+                    {% endif %}
+                    {{score_info.user_percent}}%,
+                    User Ratings: {{score_info.total_user_ratings }}
+                {% endif %}
+
+                
             
             {% if score_info.num_metareviews >= 4 %}
                   |||||||| Metascore: {{score_info.metascore}}, Based on {{score_info.num_metareviews}} Reviews.

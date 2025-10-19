@@ -38,9 +38,9 @@
 
                     {% if g.user_rating != None %}
                         {% if g.user_rating > 59 %}
-                            <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
+                            <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
                         {% else %}
-                            <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
+                            <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
                         {% endif %}
                     {% endif %}<br>
 

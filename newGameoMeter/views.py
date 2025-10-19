@@ -1,5 +1,6 @@
 from ast import operator
 from functools import reduce
+import re
 from django.shortcuts import render
 
 # Create your views here.
@@ -31,6 +32,7 @@ from io import BytesIO
 #used to take in the bytes object.
 import base64
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 
 # Create your views here.
 def home_page_view(request):
@@ -123,14 +125,19 @@ class SearchResultsView(ListView):
     #used for filtering games in search results.
     def get_queryset(self):  # new
         query = self.request.GET.get("q", '')
-        # allows the search engine to find game titles, publishers and developers.
-        games = GameInfo.objects.filter(
-            Q(name__icontains=query)
-        )
+        if query is not None:
+            query_search = Q()
+            #split the words by spaces so that the ordering doesn't matter.
+            for word in [w for w in query.split()]:
+               query_search &= Q(name__icontains=word)
+               
+            # allows the search engine to find game titles.
 
-        non_games = GameInfo.objects.filter(
-            Q(name__icontains=query)
-        )
+            games = GameInfo.objects.annotate().filter(
+                  query_search
+            )
+        else:
+            games = GameInfo.objects.all()
 
         if 'filters' in self.request.GET:
            #filter by title.
@@ -140,22 +147,7 @@ class SearchResultsView(ListView):
           if filters == 'highest_critics':
              
              f_games = []
-             """
-             scores = GameScores.objects.order_by('-all_percent')
-             for s in scores:
-                s_id = s.id_number 
-                f_games.append(s_id)
-             
-             score_ordering = Case(*[When(id_number=id, then=position) for position, id in enumerate(f_games)])
-             games = games.filter(
-                id_number__in=f_games
-             ).order_by(score_ordering)
 
-             non_games = non_games.exclude(
-                id_number__in=f_games
-             )
-             games.union(non_games, all=True)
-             """
              
              games_with_reviews = games.annotate(num_fresh_ratings=
                                                  Count("reviewinfo", filter=Q(reviewinfo__fresh_rotten=True))).annotate(
@@ -177,8 +169,6 @@ class SearchResultsView(ListView):
                 
             games = games_with_reviews.filter(total_ratings__gt=0).order_by('critics_rating')
 
-            non_games = games_with_reviews.filter(total_ratings__lt=1)
-            games.union(non_games,all=True)
 
           if filters == 'highest_audience':
              f_games = []
@@ -191,11 +181,6 @@ class SearchResultsView(ListView):
                 id_number__in=f_games
              ).order_by(score_ordering)
 
-             non_games = non_games.exclude(
-                id_number__in=f_games
-             )
-             games.union(non_games)
-
           if filters == 'lowest_audience':
              f_games = []
              scores = GameScores.objects.order_by('user_percent')
@@ -206,12 +191,6 @@ class SearchResultsView(ListView):
              games = games.filter(
                 id_number__in=f_games
              ).order_by(score_ordering)
-         
-             non_games = non_games.exclude(
-                id_number__in=f_games
-             )
-             games.union(non_games)
-         
         
         return games
 
@@ -240,7 +219,6 @@ class ShowGameDetailsView(DetailView):
 
       #calculates the user review score+average rating.
       user_reviews = UserReviewInfo.objects.filter(game=game)
-
       #, date_published__range=(2010-1-1, 2025-12-25)
       
       #store these reviews for extra filtering later.
@@ -259,7 +237,8 @@ class ShowGameDetailsView(DetailView):
          if lastDate != '':
             convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
             reviews = reviews.filter(date_published__lte=convertedDate)
-            user_reviews = user_reviews.filter(date_published__gte=convertedDate)
+            user_reviews = user_reviews.filter(date_published__lte=convertedDate)
+            #print(len(user_reviews))
       
       
       #pre-calculation to determine if the game is Certified Fresh or not. This includes
@@ -326,6 +305,7 @@ class ShowGameDetailsView(DetailView):
             reviews = reviews.filter(filtered_systems)
             #if the reviews for this console are significantly lower than any other system, then the Certified Fresh symbol shall be removed.
             """"""
+            user_reviews = user_reviews.filter(filtered_systems)
          
             #We need to filter the reviews a second time, since the individual
             # console scores might be different..
@@ -506,36 +486,43 @@ class ShowGameDetailsView(DetailView):
          rounded_metascore += game.meta_curve
 
       
-      #keeps tracks of scores and number of reviews.
+      #check if we need to filter the user reviews by their date.
+      #keeps tracks of scores and number of user reviews.
       #print(len(user_reviews))
       user_percent = 0
       user_rating = 0
-      if len(user_reviews) == 0:
+      percent_numerator = 0 
+      rating_numerator = 0
+      user_denominator = 0
+      if len(user_reviews) <= 0:
          user_percent = -5
       else:
-         percent_numerator = 0 
-         rating_numerator = 0
-         denominator = 0
+         
          for review in user_reviews:
             #reviews from 7-10 are considered Fresh.
             if review.rating >= 7:
                percent_numerator += 1 
             #adds to calculate average rating.
             rating_numerator += review.rating 
-            denominator += 1
+            user_denominator += 1
             #converts to float to get percentage.
-            if (float(float(percent_numerator)/float(denominator)) * 100) % 1 >= 0.5:
-               user_percent = math.ceil(float(float(percent_numerator)/float(denominator)) * 100)
+            if (float(float(percent_numerator)/float(user_denominator)) * 100) % 1 >= 0.5:
+               #print(float(float(percent_numerator)/float(user_denominator)))
+               user_percent = math.ceil(float(float(percent_numerator)/float(user_denominator)) * 100)
+            else:
+               #print(float(float(percent_numerator)/float(user_denominator)))
+               user_percent = round(float(float(percent_numerator)/float(user_denominator)) * 100)
             #print("The score should be: ", float(numerator)/float(denominator))
-            #converts to float to get average rating.
-            if (float(float(rating_numerator)/float(denominator))*10) % 1 >= 0.5: 
-               #print(self.name, (float(float(numerator)/float(denominator))*10))
-               user_rating = math.ceil((float(float(rating_numerator)/float(denominator))*10))
 
+            #converts to float to get average rating.
+            if (float(float(rating_numerator)/float(user_denominator))*10) % 1 >= 0.5: 
+               #print(self.name, (float(float(numerator)/float(denominator))*10))
+               user_rating = math.ceil((float(float(rating_numerator)/float(user_denominator))*10))
             else:
                #print(self.name, float(float(numerator)/float(denominator))*10)
-               user_rating = round((float(float(rating_numerator)/float(denominator))*10))
+               user_rating = round((float(float(rating_numerator)/float(user_denominator))*10))
       
+
       context.update({
          'num_fresh': thumbs_up,
          'num_rotten': thumbs_down,
@@ -549,6 +536,7 @@ class ShowGameDetailsView(DetailView):
          'is_cf': is_cf,
          'user_percent':user_percent,
          'user_rating':user_rating,
+         'total_user_reviews':user_denominator,
       })
 
 
@@ -773,6 +761,9 @@ class DisplayGameScoreChartView(DetailView):
 
       reviews = ReviewInfo.objects.filter(id_number=game)
 
+      #calculates the user review score+average rating.
+      user_reviews = UserReviewInfo.objects.filter(game=game)
+
 
       #The key will be the date, and the value will be a dictionary containingthe gameoMeter, average rating,
       # metascore, and corresponding number of ratings.
@@ -841,9 +832,10 @@ class DisplayGameScoreChartView(DetailView):
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
                else:
                   filtered_systems |= Q(platform__icontains = system)
-               print(filtered_systems)
+               #print(filtered_systems)
 
             ordered_reviews = ordered_reviews.filter(filtered_systems)
+            user_reviews = user_reviews.filter(filtered_systems)
 
             #We need to filter the reviews a second time, since the individual
             # console scores might be different..
@@ -869,7 +861,7 @@ class DisplayGameScoreChartView(DetailView):
 
                cf_dict[review.date_published] = is_cf 
       
-      print(system_list)
+      #print(system_list)
 
       #use to check if there are any top critic publications within the total critics.
       only_tc = False
@@ -913,6 +905,9 @@ class DisplayGameScoreChartView(DetailView):
       final_metascore = 0
       #turns on the fresh-rotten-certifiedFresh symbol.
       is_cf = False
+
+      
+      
       #increment through the reviews.
       for review in ordered_reviews:
          #checks if this review is the same date as the current date; if it is, we'll iterate on the 
@@ -997,12 +992,51 @@ class DisplayGameScoreChartView(DetailView):
          else:
             final_metascore += 0
 
+         #the case to handle the user scores.
+         #check if we need to filter the user reviews by their date.
+         #keeps tracks of scores and number of user reviews.
+         #print(len(user_reviews))
+         user_percent = 0
+         user_rating = 0
+         percent_numerator = 0 
+         rating_numerator = 0
+         user_denominator = 0
+
+         check_user_reviews = user_reviews.filter(date_published__lte=review_date)
+         if len(check_user_reviews) <= 0:
+            user_percent = -5
+         else: 
+            for review in check_user_reviews:
+               #reviews from 7-10 are considered Fresh.
+               if review.rating >= 7:
+                  percent_numerator += 1 
+               #adds to calculate average rating.
+               rating_numerator += review.rating 
+               user_denominator += 1
+               #converts to float to get percentage.
+               if (float(float(percent_numerator)/float(user_denominator)) * 100) % 1 >= 0.5:
+                  #print(float(float(percent_numerator)/float(user_denominator)))
+                  user_percent = math.ceil(float(float(percent_numerator)/float(user_denominator)) * 100)
+               else:
+                  #print(float(float(percent_numerator)/float(user_denominator)))
+                  user_percent = round(float(float(percent_numerator)/float(user_denominator)) * 100)
+               #print("The score should be: ", float(numerator)/float(denominator))
+
+               #converts to float to get average rating.
+               if (float(float(rating_numerator)/float(user_denominator))*10) % 1 >= 0.5: 
+                  #print(self.name, (float(float(numerator)/float(denominator))*10))
+                  user_rating = math.ceil((float(float(rating_numerator)/float(user_denominator))*10))
+               else:
+                  #print(self.name, float(float(numerator)/float(denominator))*10)
+                  user_rating = round((float(float(rating_numerator)/float(user_denominator))*10))
+
          #case where the current review has the same date as the prior review, and will be added to its nested dictionary.
          if current_date == review_date:
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
                                           'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
-                                          'formatted_date':current_date,'system_list':system_list}
+                                          'formatted_date':current_date,'system_list':system_list,
+                                          'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator}
          #case where we create a new nested dictionary for a new date.
          else:
             #check to make sure that the prior date_n_score value is there.
@@ -1015,7 +1049,8 @@ class DisplayGameScoreChartView(DetailView):
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
                                           'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
-                                          'formatted_date':current_date,'system_list':system_list}
+                                          'formatted_date':current_date,'system_list':system_list,
+                                          'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator}
       
       # Create the visual graph.
       xReviews = [date_n_score[date]['total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]

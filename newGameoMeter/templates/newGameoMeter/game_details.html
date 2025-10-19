@@ -103,13 +103,14 @@
             <div class="user-info">
                 {% if user_percent >= 0 %}
                     {% if user_percent > 59.0 %}
-                        <img src="{% static 'images/audience-yay.jpg' %}" width="20px" height="20px">
+                        <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px">
                     {% else %}
-                        <img src="{% static 'images/audience-nay.jpg' %}" width="20px" height="20px">
+                        <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px">
                     {% endif %}
 
                     {{user_percent}}%<br>
                     {{user_rating}}<br>
+                    {{total_user_reviews}}<br>
                 {% endif %}
             </div>
         </div>
