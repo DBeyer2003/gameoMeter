@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block content %}
+    <button onclick="toggleCritics()">Top Critics</button>
     <div class="game-info-grid">
     {% if game.poster_link != None %} 
         <img src="{{game.poster_link}}" width="120px"> <br>
@@ -10,18 +11,18 @@
     {% endif %}
 
     <div class="title-n-numbers">
-    {{game.name}}<br>
+        <h1 class="details-title">{{game.name}}</h1>
 
         <div class="score-info">
             
-            <div class="critics-info">
+            
+            <div id="all-critics-info" class="critics-info">
                 <!--If there are more than 0 reviews, we will display the number of fresh/rotten reviews 
                 even if there is no score.-->
                 {% if total_reviews > 0 %}
                     <!--Only displays scores if there are at least five reviews.--> 
                     {% if total_reviews >= 5 %}
-                        <!--If ALL CRITICS score is 75% or higher, the Certified Fresh logo will also display for the 
-                        top critics, regardless of what the score is.-->
+                        <!--Displays Certified Fresh symbol if is_cf case is true.-->
                         {% if is_cf == True %}
                             <img class="tomato-main" src="{% static 'images/certified-fresh.png' %}">
                             <b>{{controlometer}}% </b><br>
@@ -89,15 +90,95 @@
                     {% else %}
                         No Score Yet.<br>
                     {% endif %}
-
                     
                     <br><br>
                     
-
                 {% else %}
                     No Score Yet.<br>
                 {% endif %}
-                
+  
+            </div>
+
+            <div id="top-critics-info" class="critics-info" style="display:none">
+                <!--Same as above, but for the top critics.-->
+                {% if tc_total_reviews > 0 %}
+                    <!--Only displays scores if there are at least five top critic reviews.--> 
+                    {% if tc_total_reviews >= 5 %}
+                        <!--If ALL CRITICS score is 75% or higher, the Certified Fresh logo will also display for the 
+                        top critics, regardless of what the score is.-->
+                        {% if is_cf == True %}
+                            <img class="tomato-main" src="{% static 'images/certified-fresh.png' %}">
+                            <b>{{tc_controlometer}}% </b><br>
+                                Average Rating: {{tc_average_rating}}/10<br>
+                                <!--Used to track the number of reviews.-->
+                            
+                                Total Reviews: {{tc_total_reviews}}<br>
+                                Fresh: {{tc_num_fresh}} | Rotten {{tc_num_rotten}}
+                                <br>
+                            <div class="bar-n-consensus">
+                                <progress class="fresh" value="{{controlometer}}" max="100"> </progress>
+                                <p id="consensus">Critics' Consensus: {{game.game_scores.critics_consensus}}</p>
+                            </div>
+                            
+                            <br>
+                        {% else %}
+                            <!--The score will be fresh if it is 60% or higher.-->
+                            {% if tc_controlometer >= 60 %}
+                                <img class="tomato-main" src="{% static 'images/fresh.png' %}">
+                                <b>{{tc_controlometer}}% </b><br>
+                                Average Rating: {{tc_average_rating}}/10<br>
+                                <!--Used to track the number of reviews.-->
+                            
+                                Total Reviews: {{tc_total_reviews}}<br>
+                                Fresh: {{tc_num_fresh}} | Rotten {{tc_num_rotten}}
+                                <br>
+
+                                <div class="bar-n-consensus">
+                                    <progress class="fresh" value="{{controlometer}}" max="100"> </progress>
+                                    {% if tc_total_reviews >= 20 %}
+                                        <p id="consensus">Critics' Consensus: {{game.game_scores.critics_consensus}}</p>
+                                    {% else %}
+                                        <p id="consensus">No consensus yet.</p>
+                                    {% endif %}
+                                </div>
+                                
+                                
+                                <br>
+                            <!--The score will be rotten if it is below-->
+                            {% else %}
+                                <img class="tomato-main" src="{% static 'images/rotten.png' %}">
+                                <b>{{tc_controlometer}}% </b><br>
+                                Average Rating: {{tc_average_rating}}/10<br>
+                                <!--Used to track the number of reviews.-->
+                            
+                                Total Reviews: {{tc_total_reviews}}<br>
+                                Fresh: {{tc_num_fresh}} | Rotten {{tc_num_rotten}}
+                                <br>
+
+                                <div class="bar-n-consensus">
+                                    <progress class="rotten" value="{{controlometer}}" max="100"> </progress>
+                                    {% if tc_total_reviews >= 20 %}
+                                        <p id="consensus">Critics' Consensus: {{game.game_scores.critics_consensus}}</p>
+                                    {% else %}
+                                        <p id="consensus">No consensus yet.</p>
+                                    {% endif %}<br>
+                                </div>
+                                
+                                <br>
+                            {% endif %}
+                        {% endif %}
+                    
+                    
+                    <!--Case where there are not enough reviews for a score.-->
+                    {% else %}
+                        No Score Yet.<br>
+                    {% endif %}
+   
+                    <br><br>
+                    
+                {% else %}
+                    No Score Yet.<br>
+                {% endif %}
             </div>
 
             <div class="user-info">
@@ -129,9 +210,6 @@
     FILTER CONSOLES:
     
         <form action="{% url 'game_details' game.pk %}" method="get">
-                <!--Option to filter between all critics and Top Critics.-->
-                All Critics: <input type="radio" name="critic-type" value="all-critics"><br>
-                Top Critics Only: <input type="radio" name="critic-type" value="only-tc"><br>
 
                 <!--Option to filter based on the consoles that reviews have been published for.-->
                 {% if game.filtered_consoles %}
@@ -175,9 +253,8 @@
 
     {% if meta_bars %}
         <div class="bar-grid">
-            {% for bar in meta_bars %}
-                <div class="bars" style="width: 20px; height: 80px; background-color: {{bar}};"></div>
-            
+            {% for inc, bar_info in meta_bars.items %}
+                <div class="bars" style="width: {{bar_info.length}}px; height: 80px; background-color: {{bar_info.color}};"></div>
             {% endfor %}
         </div>
         
@@ -187,6 +264,7 @@
         {{metascore}}
     {% endif %}
     <br>
+
 
     PUBLISHER: {{game.publishers}}<br>
     DEVELOPER: {{game.developeres}}<br>

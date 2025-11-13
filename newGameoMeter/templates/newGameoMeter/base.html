@@ -17,19 +17,17 @@
         <script src="{% static 'gameometer.js' %}"></script>
     </head>
 
+
     <button onclick="myFunction()">Click me!</button>
 
     <body>
-        <?php
-        echo "MEow meow meow meow!";
-        ?>
+
         <p id="consensus">Harry~~~~~diddyah put yet name in the goblat of firah.</p>  
         
         <div class="search">
             <form action="{% url 'search_results' %}" method="get">
 
-            <input name="q" type="text" placeholder="Search Games"> <input type="submit" class="search"> <br>
-                        
+            <input name="q" id="gameSearch" type="text" placeholder="Search Games" onkeyup="instantSearch()"> <input type="submit" class="search"> <br>    
             Newest to Oldest: <input type="radio" name="filters" value="newest"><br>
             Highest Critics Rating: <input type="radio" name="filters" value="highest_critics"><br>
             Lowest Critics Rating: <input type="radio" name="filters" value="lowest_critics"><br>

@@ -228,8 +228,9 @@ class GameInfo(models.Model):
     all_systems = ['PlayStation 2', 'GameCube', 'Wii', 'Xbox',
                    'PlayStation 3', 'Xbox 360',
                    'Wii U', 'PlayStation 4', 'Xbox One',
-                   '3DS', 'PC', 'PSP', 'PlayStation 5',
-                   'Nintendo Switch', 'PlayStation Vita','iOS', 'Mac']
+                   '3DS', 'PC', 'PC (2011 Re-Release)', 'PSP', 'PlayStation 5',
+                   'Nintendo Switch', 'Nintendo Switch 2', 'PlayStation Vita','iOS', 'Mac',
+                   'PC (2004 Release)']
     current_systems = []
     reviews = ReviewInfo.objects.filter(id_number=self).exclude(platform__contains="/")
     for review in reviews:
@@ -262,8 +263,7 @@ class GameInfo(models.Model):
     
     
     if len(reviews_with_meta) >= 4:
-      #used to store/sort the metascores per review.
-      
+      #list used to store/sort the metascores per review.
       score_list = []
       for review in reviews_with_meta:
         #print("Review looks like", review.metascore)
@@ -293,6 +293,39 @@ class GameInfo(models.Model):
       #print(color_list)
       return color_list
       
+    else:
+      return None
+  
+  #NEW IDEA: Use dictionary to store the metascores, so that we can account
+  #for gradients. Basically, we create gradient colors between values with
+  #significant space (e.g. 60 and 50) and use the individual gradients to
+  #smooth out the transitions between different score-colors on the bar.
+  def meta_bars_dict(self):
+    #finds reviews with metacritic info.
+    reviews_with_meta = ReviewInfo.objects.filter(id_number = self,metascore__gte=0)
+    if len(reviews_with_meta) >= 4:
+      #list used to store/sort the metascores per review.
+      score_list = []
+      for review in reviews_with_meta:
+        #print("Review looks like", review.metascore)
+        score_list.append(review.metascore)
+      
+      score_list = sorted(score_list,reverse=True)
+
+      # the color dictionary used to identify the color value, as well as whether
+      # it's a metascore color or a gradient-blending color.
+      color_dict = {}
+      #the most recent metascore+index sorted from highest to lowest.
+      #(Initialized to negative value)
+      last_score = -5
+      #keep track of the index of the score_list, and the index of 
+      #the dictionary separately, as the dictionary will include both the
+      #metascore and gradient values.
+      last_list_index = 0 
+      last_dict_index = 0
+
+      
+      return {1:100,2:50}
     else:
       return None
   
@@ -373,7 +406,7 @@ class ReviewInfo(models.Model):
 
 
   def __str__(self):
-    return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten} with a metascore of {self.metascore}.'
+    return f'The game with id {self.id_number} now has a review published by {self.publication} and written by {self.author}, marked {self.fresh_rotten} with a metascore of {self.metascore} for the {self.platform}.'
 
 #stores information for user reviews to return as Audience score.
 """"""
@@ -397,7 +430,7 @@ class UserReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/sonic-adventure-dx-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/chibi-robo-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -463,8 +496,8 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-adventure-dx-extra.csv"
-  # open the file for reading
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/chibi-robo-extra.csv"
+  # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
   headers = f.readline()
@@ -532,7 +565,7 @@ def load_user_scores():
   '''
 
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-mc-user.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers

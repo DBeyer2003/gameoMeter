@@ -128,14 +128,15 @@ class SearchResultsView(ListView):
         if query is not None:
             query_search = Q()
             #split the words by spaces so that the ordering doesn't matter.
-            for word in [w for w in query.split()]:
+            for word in query.split():
+               #split up any regex; e.g. exclamation points or hyphons.
                query_search &= Q(name__icontains=word)
                
             # allows the search engine to find game titles.
-
             games = GameInfo.objects.annotate().filter(
                   query_search
             )
+            
         else:
             games = GameInfo.objects.all()
 
@@ -206,8 +207,9 @@ class ShowGameDetailsView(DetailView):
                    'PlayStation 3', 'Xbox 360',
                    'Wii U', 'PlayStation 4', 'Xbox One', 'DS',
                    '3DS', 'PC', 'PSP', 'PlayStation 5',
-                   'Nintendo Switch', 'PlayStation Vita',
-                   'iOS', 'iOS', 'Mac']
+                   'Nintendo Switch', 'Nintendo Switch 2', 'PlayStation Vita',
+                   'iOS', 'iOS', 'Mac', 'PC (2011 Re-Release)',
+                   'PC (2004 Release)']
 
    def get_context_data(self, *arg,**kwargs):
       context = super(ShowGameDetailsView,self).get_context_data(*arg,**kwargs)
@@ -379,8 +381,6 @@ class ShowGameDetailsView(DetailView):
             is_cf = cf_dict[review_date]
       
       
-      
-      
       if total_reviews != 0:
          #the final average rating.
          if (float(float(thumbs_up)/float(total_reviews))*100) % 1 >= 0.5: 
@@ -396,6 +396,54 @@ class ShowGameDetailsView(DetailView):
       else:
          controlometer = 0
          average_rating = 0
+      
+
+      #THIS IS THE CASE for storing the top critic information.
+      filtered_critics = Q()
+      tc_list = load_top_critics()
+      for top_critic in tc_list:
+         filtered_critics |= Q(publication__iexact = top_critic)
+
+      #use to check if there are any top critic publications within the total critics.
+      tc_reviews = reviews.filter(filtered_critics) 
+      num_tc_reviews = len(tc_reviews)
+      #used to calculate the percentage of top critic thumbs_up reviews.
+      tc_thumbs_up = 0 
+      #used to calculate the percentage of top critic thumbs_down reviews.
+      tc_thumbs_down = 0
+      #top critic percentage, total.
+      tc_controlometer = 0.0
+      #top critic formula used to calculate average.
+      tc_numerator = 0
+      tc_denominator = num_tc_reviews*100
+      tc_average_rating = 0.0
+      #we'll only count top critic reviews if there are at least five.
+      if num_tc_reviews >= 5:
+         for tc_review in tc_reviews:
+            #used to calculate the percentage of positive to negative for top critics.
+            if tc_review.fresh_rotten == True:
+               tc_thumbs_up += 1 
+            if tc_review.fresh_rotten == False:
+               tc_thumbs_down += 1
+            
+            #used to calculate the top critic average rating.
+            tc_numerator += tc_review.rating 
+         
+         #the final top critic average rating.
+         if (float(float(tc_thumbs_up)/float(num_tc_reviews))*100) % 1 >= 0.5: 
+            tc_controlometer = math.ceil((float(float(tc_thumbs_up)/float(num_tc_reviews))*100))
+         else:
+            tc_controlometer = round((float(float(tc_thumbs_up)/float(num_tc_reviews))*100))
+
+         #returns top critic score as ##/10, rounded to one decimal digit.
+         if float(float(tc_numerator)/float(tc_denominator))*100 % 1 >= 0.5:
+            tc_average_rating = math.ceil(float(float(tc_numerator)/float(tc_denominator))*100) / 10
+         else:
+            tc_average_rating = round(float(float(tc_numerator)/float(tc_denominator))*10,1)
+
+
+
+
 
       #used to return a random selection of (up to three) reviews.
       random_reviews = []
@@ -410,42 +458,143 @@ class ShowGameDetailsView(DetailView):
    
       #finds reviews with metacritic info for the metascore.
       reviews_with_meta = reviews.filter(metascore__gte=0,is_meta=True)
-      #used to calculate the metabar length.
+      
+      #used to calculate the default metabar length.
       bar_length = 0.0
       if len(reviews_with_meta) >= 4:
          length = float(len(reviews_with_meta))
          bar_length = 200.0/length
 
       #used to calculate the colors for the metabar that will be displayed.
-      meta_bars = []
+      meta_bars = {}
       if len(reviews_with_meta) >= 4:
       #used to store/sort the metascores per review.
-         
+         score_dict = {}
          score_list = []
+         #the default RGB values for the colors.
+         red_hex = (255,0,0)
+         yellow_hex = (255,255,0)
+         green_hex = (0,176,80)
+
          for review in reviews_with_meta:
+            if review.metascore not in score_dict: 
+               score_dict[review.metascore] = 1
+            else:
+               score_dict[review.metascore] += 1
             score_list.append(review.metascore)
             
             score_list = sorted(score_list,reverse=True)
+         scoreKeys = list(score_dict.keys())
+         scoreKeys.sort(reverse=True)
+         score_dict = {k: score_dict[k] for k in scoreKeys}
+         print(score_dict)
 
-            red_hex = (255,0,0)
-            yellow_hex = (255,255,0)
-            green_hex = (0,176,80)
-            color_list = []
-         for value in score_list:
-         
-            if int(value) <= 63:
-               ratio = value / 63 
+            
+         color_list = {}
+         #used to check if we need to add gradient colors to our bar-list by
+         #comparing the current metascore to the previous one; if they are the
+         #same or only 1 point apart, we don't need to add any gradients. Otherwise
+         #we will add gradients to smoothly blend the two colors together.
+         last_score = -5
+         last_quantity = 0
+         last_hex = f''
+         #last index with one of the metascores.
+         #last_index = -1
+         #adds index values to account for gradient bars AS WELL as the 
+         #bars from the score_list.
+         extra_index = 0
+         #in case we are adding gradients, use this variable to get its bar length.
+         extra_length = 0
+         for score, quantity in score_dict.items():
+            #reinitialize extra_length to 0.
+            extra_length = 0
+            last_index = float(extra_index)
+            #last_score is initialized to negative number.
+            if last_score < 0:
+               
+               last_score = score
+               last_quantity = quantity
+            
+            #case where we need to add a single gradient in-bewteen values.
+            if last_score-score == 2:
+               if int(last_score-1) <= 63:
+                  ratio = (last_score-1) / 63 
+                  r = 255
+                  g = int((red_hex[1]*(1-ratio))+(yellow_hex[1]*(ratio)))
+                  b = 0
+               else:
+                  ratio = (score-63) / (37) 
+                  r = int((yellow_hex[0]*(1-ratio))+(green_hex[0]*ratio))
+                  g = int((yellow_hex[1]*(1-ratio))+(green_hex[1]*ratio))
+                  b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
+
+               hex_color = f'#{r:02X}{g:02X}{b:02X}'
+               #extra_length is the length of the bar with the shortest length
+               #between the two bars that are being blended together.
+               extra_length = min(200.0*(float(quantity)/float(len(reviews_with_meta))),200*float(last_quantity)/float(len(reviews_with_meta)))
+               color_list[extra_index] = {'color': hex_color, 'type':'gradient','length':extra_length}
+               extra_index += 1
+
+            #case where we need to add multiple gradient in-bewteen values.
+            
+            elif last_score-score > 2:
+               extra_length = min(200.0*(float(quantity)/float(len(reviews_with_meta))),200.0*float(last_quantity)/float(len(reviews_with_meta)))
+               for ls in range(last_score-1,score,-1):
+                  #print(ls)
+                  if int(ls) <= 63:
+                     ratio = ls/63 
+                     r = 255
+                     g = int((red_hex[1]*(1-ratio))+(yellow_hex[1]*(ratio)))
+                     b = 0
+                  else: 
+                     ratio = (ls-63) / 37
+                     r = int((yellow_hex[0]*(1-ratio))+(green_hex[0]*ratio))
+                     g = int((yellow_hex[1]*(1-ratio))+(green_hex[1]*ratio))
+                     b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
+                  
+                  hex_color = f'#{r:02X}{g:02X}{b:02X}'
+                  #extra_length is the length of the bar with the shortest length
+                  #between the two bars that are being blended together.
+                  
+                  #divide the extra length by the number of added gradient values.
+                  color_list[extra_index] = {'color': hex_color, 'type':'gradient','length':extra_length/(last_score-score-1)}
+                  extra_index += 1
+
+            """"""
+            #the main bar that we are adding.
+            if int(score) <= 63:
+               ratio = score / 63 
                r = 255
                g = int((red_hex[1]*(1-ratio))+(yellow_hex[1]*(ratio)))
                b = 0
             else:
-               ratio = (value-63) / (37) 
+               ratio = (score-63) / (37) 
                r = int((yellow_hex[0]*(1-ratio))+(green_hex[0]*ratio))
                g = int((yellow_hex[1]*(1-ratio))+(green_hex[1]*ratio))
                b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
             hex_color = f'#{r:02X}{g:02X}{b:02X}'
-            color_list.append(hex_color)
+
+            #we're going to divide the two consecutive metabars' lengths in half
+            #if there are gradients to add.
+            if last_score-score >= 2:
+               #color_list[last_index] = {'color': hex_color, 'type':'metabar','length':}
+               color_list[last_index] = {'color': last_hex, 'type':'metabar','length':(200.0*(float(last_quantity)/float(len(reviews_with_meta))))-(extra_length/2.0)}
+               color_list[extra_index] = {'color': hex_color, 'type':'metabar','length':(200.0*(float(quantity)/float(len(reviews_with_meta))))-(extra_length/2.0)}
+            else:
+               color_list[extra_index] = {'color': hex_color, 'type':'metabar','length':(200.0*(float(quantity)/float(len(reviews_with_meta))))}
+            
+            
+            extra_index += 1
+            #last_index = extra_index
+            last_score = score
+            last_quantity = quantity
+            last_hex = hex_color
+            
          meta_bars = color_list
+         print(meta_bars)
+
+      
+      
 
       #used to calculate the metascore
       uncurved_metascore = 0
@@ -529,6 +678,11 @@ class ShowGameDetailsView(DetailView):
          'total_reviews': total_reviews,
          'controlometer': controlometer, 
          'average_rating': average_rating,
+         'tc_num_fresh': tc_thumbs_up, 
+         'tc_num_rotten': tc_thumbs_down, 
+         'tc_total_reviews': num_tc_reviews,
+         'tc_controlometer': tc_controlometer, 
+         'tc_average_rating': tc_average_rating,
          'random_reviews': random_reviews,
          'metascore': rounded_metascore,
          'bar_length': bar_length,
@@ -591,6 +745,15 @@ class ShowGameReviewsView(DetailView):
 
       reviews = ReviewInfo.objects.filter(id_number=game)
 
+
+      #checks if there is a filter to sort between fresh-rotten reviews.
+      if 'f-r' in self.request.GET:
+         filter = self.request.GET['f-r']
+         if filter == 'fresh':
+            reviews = reviews.filter(fresh_rotten=True)
+         if filter == 'rotten':
+            reviews = reviews.filter(fresh_rotten=False)
+      
       #use to check if there are any top critic publications within the total critics.
       if 'critic-type' in self.request.GET:
          filtered_critics = Q()
@@ -601,14 +764,6 @@ class ShowGameReviewsView(DetailView):
             for top_critic in tc_list:
                filtered_critics |= Q(publication__iexact = top_critic)
             reviews = reviews.filter(filtered_critics)
-
-      #checks if there is a filter to sort between fresh-rotten reviews.
-      if 'f-r' in self.request.GET:
-         filter = self.request.GET['f-r']
-         if filter == 'fresh':
-            reviews = reviews.filter(fresh_rotten=True)
-         if filter == 'rotten':
-            reviews = reviews.filter(fresh_rotten=False)
       
             #processes option to filter reviews by date published.
       if 'date-range-low' in self.request.GET:
@@ -830,6 +985,8 @@ class DisplayGameScoreChartView(DetailView):
                #original ds.
                elif system == 'DS':
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
+               elif system == 'PC':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'PC /') | Q(platform__contains = '/ PC')
                else:
                   filtered_systems |= Q(platform__icontains = system)
                #print(filtered_systems)
