@@ -33,10 +33,6 @@ div.search-grid {
 
 }
 
-div.score-info {
-    align-items:center;
-}
-
 
 h1.title {
     text-align:center;
@@ -82,6 +78,7 @@ h1.title:hover {
 
 progress.fresh {
     background: orange;
+    width:80%;
 }
 
 progress.fresh::-webkit-progress-value {
@@ -90,6 +87,7 @@ progress.fresh::-webkit-progress-value {
 
 progress.rotten {
     background: orange;
+    width:80%;
 }
 
 progress.rotten::-webkit-progress-value {
@@ -99,11 +97,59 @@ progress.rotten::-webkit-progress-value {
 /*Used to align the color bars for the meta-info. */
 div.bar-grid {
     display: flex;
-
-
 }
 
 /*Used to stylize the meta bar.*/
 div.bars {
     padding:0px;
+}
+
+
+
+/*Used to align the poster+information when searching for games. */
+div.game-info-grid {
+    display: flex;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    background-color:rgb(199, 157, 101);
+    width:70%;
+    align-items:center;
+    padding:10px;
+    border-radius: 10px;
+
+}
+
+div.title-n-numbers {
+    vertical-align: middle;
+    display: grid;
+    align-items:center;
+    align-self: center;
+    align-content: center;
+    width:90%;
+}
+
+div.score-info {
+
+    background-color:rgb(248, 219, 180);
+    align-items:center;
+    padding:10px;
+    border-radius: 10px;
+    display: flex;
+    grid-template-columns: 1fr 1fr;
+}
+
+
+div.critics-info {
+    display:flex;
+}
+
+
+img.tomato-main {
+    width:50px;
+    height:50px;
+}
+
+h1.details-title {
+    font-size:30px;
+    text-decoration: underline;
 }
