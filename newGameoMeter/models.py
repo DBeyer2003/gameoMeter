@@ -368,6 +368,21 @@ class GameInfo(models.Model):
   def __str__(self):
     return f'The video game {self.name} has been added with ID number {self.id_number}.'
 
+class GameTag(models.Model):
+  '''
+  Used to tag a game as being part of a specific group or sub-group (i.e. a Mario
+  game is part of the Mario series; the New Super Mario Bros games are part of the
+  New Super Mario Bros series, etc.)
+  '''
+  tag_name = models.TextField(blank=False)
+  #The games that the tag can be added to.
+  games = models.ManyToManyField(GameInfo, blank=True)
+
+  def __str__(self):
+    return f'The tag_name {self.tag_name} has been created.'
+
+
+
 
 
 class ReviewInfo(models.Model):
@@ -424,13 +439,13 @@ class UserReviewInfo(models.Model):
   game = models.ForeignKey(GameInfo, on_delete=models.CASCADE)
 
   def __str__(self):
-    return f'The review for game {self.game.name} with a score of {self.rating} and published by user {self.user} on {self.date_published} is now in da house.'
+    return f'The review for game {self.game.name} on {self.platform} with a score of {self.rating} and published by user {self.user} on {self.date_published} is now in da house.'
   
 
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/chibi-robo-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/skyward-sword-wii-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -496,7 +511,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/chibi-robo-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/skyward-sword-wii-extra.csv"
   # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -559,13 +574,14 @@ def load_extra_reviews():
     except IOError as e:
       print(f"EXCEPTION {e} OCCURED: {fields}.")
 
+
 def load_user_scores():
   '''
   Loads user scores for display.
   '''
 
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-gamefaqs.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -726,13 +742,10 @@ def load_top_critics():
     try:
       #split the CSV file into fields
       fields = line.split(',')
-
-
       
       for critic in fields:
         tc_list.append(critic)
       
-
     except:
       print(f"EXCEPTION OCCURED: {fields}.")
   
@@ -746,6 +759,41 @@ def load_top_critics():
   #print(mod_list)
 
   return mod_list
+
+def top_critics_dict():
+  """
+  Used to create a list of top critics; so that the user can filter.
+  """
+
+  # open the file for reading one line at a time
+  filename = "/Users/DBeye/new_django_game/review_csvs/top-critic-list.csv"
+
+  # open the file for reading
+  f = open(filename) 
+  # discard the first line containing headers
+  headers = f.readline()
+  tc_list = []
+
+  # go through the entire file one line at a time
+  for line in f:
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+      
+      for critic in fields:
+        tc_list.append(critic)
+      
+    except:
+      print(f"EXCEPTION OCCURED: {fields}.")
+
+  mod_dict = {}
+  pub = 0
+  for publication in tc_list:
+    mod_pub = publication.replace("\n","")
+    mod_dict[pub] = mod_pub
+    pub += 1
   
-  
+  #print(mod_list)
+
+  return mod_dict
 

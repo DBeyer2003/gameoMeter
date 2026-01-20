@@ -15,6 +15,8 @@
         <title>Mock Game-O-Meter</title>
         <link rel="stylesheet" href="{% static 'newGameoMeter.css' %}">
         <script src="{% static 'gameometer.js' %}"></script>
+        <!--Used for instant search engine.-->
+        <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js" integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz" crossorigin="anonymous"></script>
     </head>
 
 
@@ -23,11 +25,23 @@
     <body>
 
         <p id="consensus">Harry~~~~~diddyah put yet name in the goblat of firah.</p>  
+        <p id="consensus">Dobby has freed his elf~~~~~~~~</p>  
+
+        <div>
+            <a class="button" >CREATE GAME TAG</a>
+        </div>
         
         <div class="search">
             <form action="{% url 'search_results' %}" method="get">
 
-            <input name="q" id="gameSearch" type="text" placeholder="Search Games" onkeyup="instantSearch()"> <input type="submit" class="search"> <br>    
+            <input name="q" id="gameSearch" type="text" placeholder="Search Games" hx-get="/instant_search" hx-trigger="keyup changed" hx-target="#instant_results">
+
+            <tbody id="instant_results">
+                    
+            </tbody>
+
+            
+            <input type="submit" class="search"> <br>    
             Newest to Oldest: <input type="radio" name="filters" value="newest"><br>
             Highest Critics Rating: <input type="radio" name="filters" value="highest_critics"><br>
             Lowest Critics Rating: <input type="radio" name="filters" value="lowest_critics"><br>

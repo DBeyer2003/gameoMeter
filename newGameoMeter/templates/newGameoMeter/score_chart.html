@@ -7,73 +7,188 @@
 <a href="{% url 'game_details' get_pk %}">Back to main page.</a>
 
     <form action="{% url 'score_chart' get_pk %}" method="get">
-        
-        <!--Option to filter between all critics and Top Critics.-->
-        All Critics: <input type="radio" name="critic-type" value="all-critics"><br>
-        Top Critics Only: <input type="radio" name="critic-type" value="only-tc"><br>
 
+        <!--Option to filter between consoles.-->
         {% if game.filtered_consoles %}
+            FILTER CONSOLES:<br>
             <input type="checkbox" id="console" name="console", value="All"> All Systems<br>
             {% for console in game.filtered_consoles %}
                 <input type="checkbox" id="console" name="console", value="{{console}}"> {{console}}<br>
             {% endfor %}
         {% endif %}
         <!--Add a function to sort by dates here.-->
+        FILTER DATES:
         <input type="fromSlider" id="date-range-low" name="date-range-low" min="0" max="100">
         <input type="toSlider" id="date-range-high" name="date-range-high" min="0" max="100">
 
         <input type="submit"><br>
     </form>
 
+
+    <button id="TCButton" style="position:sticky; top: 0; right:0;" onclick="showTCInfo()">Show Top Critics</button>
+    <br>
+
     {% if graph %}
         <img src="data:image/png;base64, {{graph|safe}}"><br>
     {% endif %}
+
+    {% if tc_graph %}
+        <img src="data:image/png;base64, {{tc_graph|safe}}"><br>
+    {% endif %}
+
+
     <!--Button to hide/show the info for each ate.-->
-    <button onclick="showDateInfo()">Show Reviews</button>
+    <button id="dateButton" onclick="showDateInfo()">Show Dates</button>
+
     <div id="chartReviews"  style="display:none">
-        {% for date, score_info in date_n_score.items %}
-            <form id="filtered-main" action="{% url 'game_details' get_pk %}" method="get" target="_blank">
+        <div id="sticky">
+            Let's see if this sticks.
+        </div>
+        
 
-                {% for system in score_info.system_list %}
-                    <input type="hidden" id="console" name="console" value="{{system}}"> 
-                {% endfor %}
+        <div id="all-chart" style="display:inline">
+            {% for date, score_info in date_n_score.items %}
+                
+                <form id="filtered-main" action="{% url 'game_details' get_pk %}" method="get" target="_blank">
 
-                - Date Tracked: <input type="submit" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
-            </form> 
-            
-                <!--Checks if the certified fresh logo is marked; if it is, then the review is guaranteed to
-                have at least 40 reviews.-->
-                {% if score_info.total_reviews >= 5 %}
-                    {% if score_info.is_cf == True %}
-                        <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
-                    {% elif score_info.controlometer < 60 %}
-                        <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
-                    {% else %}
-                        <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
-                    {% endif %}
-                    {{score_info.controlometer}}%, 
-                    Average Rating: {{score_info.average_rating}}/10,   
-                {% endif %}
+                    {% for system in score_info.system_list %}
+                        <input type="hidden" id="console" name="console" value="{{system}}"> 
+                    {% endfor %}
 
-                Total Reviews: {{score_info.total_reviews}}.
-
-                {% if score_info.total_user_ratings >= 10 %}
-                    {% if score_info.user_percent >= 60 %}
-                        <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px">
-                    {% else %}
-                        <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px">
-                    {% endif %}
-                    {{score_info.user_percent}}%, {{score_info.user_rating}}/100,
-                    User Ratings: {{score_info.total_user_ratings }}
-                {% endif %}
+                    - Date Tracked: <input type="submit" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
+                </form> 
 
                 
-            
-            {% if score_info.num_metareviews >= 4 %}
-                  |||||||| Metascore: {{score_info.metascore}}, Based on {{score_info.num_metareviews}} Reviews.
-            {% endif %}
-            <br><br>
-        {% endfor%}
+                    
+                    {% if score_info.total_reviews >= 5 %}
+                        <!--Checks if the certified fresh logo is marked; if it is, then the review is guaranteed to
+                        have at least 40 reviews.-->
+                        
+                            {% if score_info.is_cf == True %}
+                                <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
+                            {% elif score_info.controlometer < 60 %}
+                                <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
+                            {% else %}
+                                <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+                            {% endif %}
+                            
+                            {{score_info.controlometer}}%, 
+                            Average Rating: {{score_info.average_rating}}/10,  
+                            
+
+                    {% endif %}   
+                    
+                    All Reviews: {{score_info.total_reviews}}.
+
+                    {% if score_info.total_user_ratings >= 10 %}
+                        {% if score_info.user_percent >= 60 %}
+                            <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px">
+                        {% else %}
+                            <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px">
+                        {% endif %}
+                        {{score_info.user_percent}}%, {{score_info.user_rating}}/100,
+                        User Ratings: {{score_info.total_user_ratings }}
+                    {% endif %}
+
+                    
+                
+                {% if score_info.num_metareviews >= 1 %}
+                        |||||||| Metascore
+                    {% if score_info.num_metareviews >= 4 %}
+                            : {{score_info.metascore}}
+                    {% endif %}
+                            , Based on {{score_info.num_metareviews}} Reviews.
+                {% endif %}
+
+                <form id="filtered-main" action="{% url 'game_reviews' get_pk %}" method="get" target="_blank">
+                    {% for system in score_info.system_list %}
+                        <input type="hidden" id="console" name="console" value="{{system}}"> 
+                    {% endfor %}
+
+                    <input type="hidden" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
+                    <input type="submit" value="See Reviews">
+                </form> 
+                <br>
+            {% endfor %}
+        </div>
+
+        <!--Information for the top critics only.-->
+        <div id="top-chart" style="display:none">
+            {% for date, score_info in date_n_score.items %}
+                
+                <form id="filtered-main" action="{% url 'game_details' get_pk %}" method="get" target="_blank">
+
+                    {% for system in score_info.system_list %}
+                        <input type="hidden" id="console" name="console" value="{{system}}"> 
+                    {% endfor %}
+
+                    - Date Tracked: <input type="submit" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
+                </form> 
+                
+                    
+                    {% if score_info.total_reviews >= 5 %}
+                        <!--Checks if the certified fresh logo is marked; if it is, then the review is guaranteed to
+                        have at least 40 reviews.-->
+
+                        <!--Top critics information to toggle between.-->
+                            {% if score_info.tc_total_reviews >= 1 %}
+                                {% if score_info.tc_total_reviews >= 5%}
+                                    {% if score_info.is_cf == True %}
+                                        <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
+                                    {% elif score_info.tc_controlometer < 60 %}
+                                        <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
+                                    {% else %}
+                                        <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+                                    {% endif %}
+                                    {{score_info.tc_controlometer}}%, 
+                                    Average Rating: {{score_info.tc_average_rating}}/10,  
+                                {% endif %}
+                                
+                            {% endif %}
+
+                    {% endif %}  
+                    
+                    Top Reviews: {{score_info.tc_total_reviews}}.
+
+                    {% if score_info.total_user_ratings >= 10 %}
+                        {% if score_info.user_percent >= 60 %}
+                            <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px">
+                        {% else %}
+                            <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px">
+                        {% endif %}
+                        {{score_info.user_percent}}%, {{score_info.user_rating}}/100,
+                        User Ratings: {{score_info.total_user_ratings }}
+                    {% endif %}
+
+                    
+                
+                {% if score_info.num_metareviews >= 1 %}
+                        |||||||| Metascore
+                    {% if score_info.num_metareviews >= 4 %}
+                            : {{score_info.metascore}}
+                    {% endif %}
+                            , Based on {{score_info.num_metareviews}} Reviews.
+                {% endif %}
+                <form id="filtered-main" action="{% url 'game_reviews' get_pk %}" method="get" target="_blank">
+                    {% for system in score_info.system_list %}
+                        <input type="hidden" id="console" name="console" value="{{system}}"> 
+                    {% endfor %}
+
+                    <input type="hidden" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
+                    <input type="submit" value="See Reviews">
+                </form> 
+                <br>
+
+            {% endfor %}
+        </div>
+        
+
+        
+
+
+        </p>
+
+        
     </div>
 
 {% endblock %}

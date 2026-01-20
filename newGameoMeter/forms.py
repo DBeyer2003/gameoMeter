@@ -53,3 +53,7 @@ class UpdateReviewInfoForm(forms.ModelForm):
     fields = ['id_number', 'publication','author', 'rating','display_score','fresh_rotten','date_published','quote','platform','url_link']
 
 
+class CreateGameTagForm(forms.ModelForm):
+  '''
+  A form to create a game tag.
+  '''

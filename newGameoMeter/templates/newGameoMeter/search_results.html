@@ -60,12 +60,23 @@
 
     </div>
 
+    Results per page:
+    <ul>
+        <li><a href="{{ request.get_full_path }}&per_page=10">10 results</a></li>
+        <li><a href="{{ request.get_full_path }}&per_page=25">25 results</a></li>
+        <li><a href="{{ request.get_full_path }}&per_page=50">50 results</a></li>
+        <li><a href="{{ request.get_full_path }}&per_page=100">100 results</a></li>
+    </ul>
+
+    <input type="range" class="slider", id="range"
+    min="0" max="100">
+
     <!--Displays limited number of games per page.-->
     {% if is_paginated %}
 
     
-    
     <div style="margin-top:10px; margin-bottom:10px; margin-left:25px;" class="page">
+        
         <!--link to the game's previous page.-->
         {% if page_obj.has_previous %}
             <a style="font-family:cursive;" href="?{% param_replace page=1 %}">First</a>

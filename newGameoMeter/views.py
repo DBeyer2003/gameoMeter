@@ -20,8 +20,7 @@ from django.contrib.auth import authenticate, login
 from django.db.models import Q, Case, When # new
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django import template
-from django.db.models import Count
-from django.db.models import FloatField
+from django.db.models import Count, FloatField
 from django.db.models.functions import Cast
 from . filters import *
 from django.urls import reverse_lazy
@@ -65,16 +64,29 @@ class ShowAllGamesView(ListView):
 
     return context
 
-class SearchSuggestionsView(View):
-   """
-   Used to automatically generate suggestions that matches
-   the characters a user is typing.
-   """
-   def get(self):
-      query = self.request.GET.get('term','')
-      games = GameInfo.objects.filter(name__icontains=query)[:10]
-      suggestions = [game.name for game in games]
-      return JsonResponse(suggestions, safe=False)
+def instant_search(request):
+   '''
+   Used to automatically bring up games that match
+   the user's input.
+   '''
+   query = request.GET.get("q", '')
+
+   if query is not None:
+      query_search = Q()
+      #split the words by spaces so that the ordering doesn't matter.
+      for word in query.split():
+         #split up any regex; e.g. exclamation points or hyphons.
+         query_search &= Q(name__icontains=word)
+         
+      # allows the search engine to find game titles.
+      results = GameInfo.objects.annotate().filter(
+            query_search
+      )
+   else:
+      results = []
+   
+   return render(request,"newGameoMeter/instant_search.html", {"results": results})
+
 
 #used to determine if game between 70-74% in search results is Certified Fresh or
 #not, based on patterns in which reviews were added.
@@ -120,11 +132,14 @@ class SearchResultsView(ListView):
     model = GameInfo
     template_name = 'newGameoMeter/search_results.html'
     context_object_name = 'games'
-    paginate_by = 40
+    #INSERT TRY-EXCEPT STATEMENT HERE.
+    def get_paginate_by(self, queryset):
+        return self.request.GET.get('per_page', 10)
 
     #used for filtering games in search results.
     def get_queryset(self):  # new
         query = self.request.GET.get("q", '')
+
         if query is not None:
             query_search = Q()
             #split the words by spaces so that the ordering doesn't matter.
@@ -487,7 +502,7 @@ class ShowGameDetailsView(DetailView):
          scoreKeys = list(score_dict.keys())
          scoreKeys.sort(reverse=True)
          score_dict = {k: score_dict[k] for k in scoreKeys}
-         print(score_dict)
+         #print(score_dict)
 
             
          color_list = {}
@@ -506,59 +521,6 @@ class ShowGameDetailsView(DetailView):
          #in case we are adding gradients, use this variable to get its bar length.
          extra_length = 0
          for score, quantity in score_dict.items():
-            #reinitialize extra_length to 0.
-            extra_length = 0
-            last_index = float(extra_index)
-            #last_score is initialized to negative number.
-            if last_score < 0:
-               
-               last_score = score
-               last_quantity = quantity
-            
-            #case where we need to add a single gradient in-bewteen values.
-            if last_score-score == 2:
-               if int(last_score-1) <= 63:
-                  ratio = (last_score-1) / 63 
-                  r = 255
-                  g = int((red_hex[1]*(1-ratio))+(yellow_hex[1]*(ratio)))
-                  b = 0
-               else:
-                  ratio = (score-63) / (37) 
-                  r = int((yellow_hex[0]*(1-ratio))+(green_hex[0]*ratio))
-                  g = int((yellow_hex[1]*(1-ratio))+(green_hex[1]*ratio))
-                  b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
-
-               hex_color = f'#{r:02X}{g:02X}{b:02X}'
-               #extra_length is the length of the bar with the shortest length
-               #between the two bars that are being blended together.
-               extra_length = min(200.0*(float(quantity)/float(len(reviews_with_meta))),200*float(last_quantity)/float(len(reviews_with_meta)))
-               color_list[extra_index] = {'color': hex_color, 'type':'gradient','length':extra_length}
-               extra_index += 1
-
-            #case where we need to add multiple gradient in-bewteen values.
-            
-            elif last_score-score > 2:
-               extra_length = min(200.0*(float(quantity)/float(len(reviews_with_meta))),200.0*float(last_quantity)/float(len(reviews_with_meta)))
-               for ls in range(last_score-1,score,-1):
-                  #print(ls)
-                  if int(ls) <= 63:
-                     ratio = ls/63 
-                     r = 255
-                     g = int((red_hex[1]*(1-ratio))+(yellow_hex[1]*(ratio)))
-                     b = 0
-                  else: 
-                     ratio = (ls-63) / 37
-                     r = int((yellow_hex[0]*(1-ratio))+(green_hex[0]*ratio))
-                     g = int((yellow_hex[1]*(1-ratio))+(green_hex[1]*ratio))
-                     b = int((yellow_hex[2]*(1-ratio))+(green_hex[2]*ratio))
-                  
-                  hex_color = f'#{r:02X}{g:02X}{b:02X}'
-                  #extra_length is the length of the bar with the shortest length
-                  #between the two bars that are being blended together.
-                  
-                  #divide the extra length by the number of added gradient values.
-                  color_list[extra_index] = {'color': hex_color, 'type':'gradient','length':extra_length/(last_score-score-1)}
-                  extra_index += 1
 
             """"""
             #the main bar that we are adding.
@@ -576,12 +538,7 @@ class ShowGameDetailsView(DetailView):
 
             #we're going to divide the two consecutive metabars' lengths in half
             #if there are gradients to add.
-            if last_score-score >= 2:
-               #color_list[last_index] = {'color': hex_color, 'type':'metabar','length':}
-               color_list[last_index] = {'color': last_hex, 'type':'metabar','length':(200.0*(float(last_quantity)/float(len(reviews_with_meta))))-(extra_length/2.0)}
-               color_list[extra_index] = {'color': hex_color, 'type':'metabar','length':(200.0*(float(quantity)/float(len(reviews_with_meta))))-(extra_length/2.0)}
-            else:
-               color_list[extra_index] = {'color': hex_color, 'type':'metabar','length':(200.0*(float(quantity)/float(len(reviews_with_meta))))}
+            color_list[extra_index] = {'color': hex_color, 'type':'metabar','length':(200.0*(float(quantity)/float(len(reviews_with_meta))))}
             
             
             extra_index += 1
@@ -591,10 +548,8 @@ class ShowGameDetailsView(DetailView):
             last_hex = hex_color
             
          meta_bars = color_list
-         print(meta_bars)
+         #print(meta_bars)
 
-      
-      
 
       #used to calculate the metascore
       uncurved_metascore = 0
@@ -622,7 +577,7 @@ class ShowGameDetailsView(DetailView):
       elif uncurved_metascore <= 74 and uncurved_metascore >= 50:
          curved_metascore = float((float((float((float(uncurved_metascore)-49.0)/25.0))*21.0))+39.0)
       else:
-         curved_metascore = float(float((float(uncurved_metascore)/49.0))/39.0)
+         curved_metascore = float(float((float(uncurved_metascore)/49.0))*39.0)
       
       rounded_metascore = 0
       #rounds the curved_metascore, adds the curve.
@@ -685,6 +640,7 @@ class ShowGameDetailsView(DetailView):
          'tc_average_rating': tc_average_rating,
          'random_reviews': random_reviews,
          'metascore': rounded_metascore,
+         'num_meta': len(reviews_with_meta),
          'bar_length': bar_length,
          'meta_bars': meta_bars,
          'is_cf': is_cf,
@@ -865,14 +821,14 @@ class UpdateGameInfoView(LoginRequiredMixin, UpdateView):
       game = GameInfo.objects.filter(pk=pk).first()
       #reverse to show the GameInfo page.
       return reverse('game_details',kwargs={'pk':pk})
-  
 
-"""
-Used to update information about individual reviews (e.g. change the 
-fresh/rotten symbol.)
-"""
+
+
 class UpdateReviewInfoView(UpdateView):
-
+  """
+  Used to update information about individual reviews (e.g. change the 
+  fresh/rotten symbol.)
+  """
   form_class = UpdateReviewInfoForm
   template_name = "newGameoMeter/update_review.html"
   model = ReviewInfo
@@ -960,10 +916,8 @@ class DisplayGameScoreChartView(DetailView):
          
          
          cf_dict[review.date_published] = is_cf 
-      
-         
-         
-      
+
+
       #stores systems in a list.
       system_list = []
       
@@ -1022,6 +976,7 @@ class DisplayGameScoreChartView(DetailView):
 
       #use to check if there are any top critic publications within the total critics.
       only_tc = False
+      tc_list = load_top_critics()
       if 'critic-type' in self.request.GET:
          filtered_critics = Q()
          critic_type = self.request.GET['critic-type']
@@ -1032,6 +987,7 @@ class DisplayGameScoreChartView(DetailView):
             for top_critic in tc_list:
                filtered_critics |= Q(publication__iexact = top_critic)
             ordered_reviews = ordered_reviews.filter(filtered_critics)
+   
       
       #used to remember the first date that a review was published.
       first_date = ordered_reviews.first().date_published
@@ -1063,6 +1019,15 @@ class DisplayGameScoreChartView(DetailView):
       #turns on the fresh-rotten-certifiedFresh symbol.
       is_cf = False
 
+      #used to score top critics info, if available.
+      tc_dict = top_critics_dict()
+      tc_total_reviews = 0
+      tc_thumbs_up = 0
+      tc_thumbs_down = 0
+      tc_controlometer = 0
+      tc_numerator = 0
+      tc_denominator = tc_total_reviews*100
+      tc_average_rating = 0.0
       
       
       #increment through the reviews.
@@ -1104,8 +1069,35 @@ class DisplayGameScoreChartView(DetailView):
          else:
             is_cf = False
          
+         #create the top critic information.
+         if review.publication in tc_dict.values():
+            tc_total_reviews += 1
+            #print("FOR THE DATE ", review.date_published, "WE HAVE FOUND FOR TC ", tc_total_reviews, "WITH RECENT PUB ", review.publication)
+            #adds to the fresh-rotten values.
+            if review.fresh_rotten == True:
+               tc_thumbs_up += 1
+            else:
+               tc_thumbs_down += 1
+            #used to calculate average rating.
+            tc_numerator += review.rating
+            tc_denominator = tc_total_reviews*100
+
+            #the current average rating.
+            if (float(float(tc_thumbs_up)/float(tc_total_reviews))*100) % 1 >= 0.5: 
+               tc_controlometer = math.ceil((float(float(tc_thumbs_up)/float(tc_total_reviews))*100))
+            else:
+               tc_controlometer = round((float(float(tc_thumbs_up)/float(tc_total_reviews))*100))
+
+            #returns average score as ##/10, rounded to one decimal digit.
+            if float(float(tc_numerator)/float(tc_denominator))*100 % 1 >= 0.5:
+               tc_average_rating = math.ceil(float(float(tc_numerator)/float(tc_denominator))*100) / 10
+            else:
+               tc_average_rating = round(float(float(tc_numerator)/float(tc_denominator))*10,1)
+         
          #used to calculate metascore.
          uncurved_metascore = 0
+         #used to store metascores for color bars.
+         score_dict = {}
 
          if review.is_meta == True:
             #counts the number of metareviews. (NOT JUST THE ONES WITH SCORES.)
@@ -1120,7 +1112,9 @@ class DisplayGameScoreChartView(DetailView):
                if float(float(meta_numerator)/float(meta_denominator))*100 % 1 >= 0.5:
                   uncurved_metascore = math.ceil(float(float(meta_numerator)/float(meta_denominator))*100)
                else:
+                  
                   uncurved_metascore = round(float(float(meta_numerator)/float(meta_denominator))*100)
+                  #print("LESSER CASE: ", meta_numerator, meta_denominator, uncurved_metascore)
                
 
                #used to curve metascore.
@@ -1132,8 +1126,11 @@ class DisplayGameScoreChartView(DetailView):
                #the yellow case (50-74)
                elif uncurved_metascore <= 74 and uncurved_metascore >= 50:
                   curved_metascore = float((float((float((float(uncurved_metascore)-49.0)/25.0))*21.0))+39.0)
+                  #print("WE ARE STILL OUT OF THE RED: ", curved_metascore)
                else:
-                  curved_metascore = float(float((float(uncurved_metascore)/49.0))/39.0)
+                  
+                  curved_metascore = float(float((float(uncurved_metascore)/49.0))*39.0)
+                  #print("WHY ARE WE GOING UNDER? ", curved_metascore)
                
                rounded_metascore = 0
                #rounds the curved_metascore, adds the curve.
@@ -1145,6 +1142,7 @@ class DisplayGameScoreChartView(DetailView):
                final_metascore = rounded_metascore
                if game.meta_curve != None:
                   final_metascore += game.meta_curve
+            #print("FOR PUBLICATION ", review.publication, " ON DATE ", review.date_published, ", METASCORE IS ", review.metascore, ", METANINATOR IS ", meta_numerator, ", DENOMINATOR IS ", meta_denominator, " AND FINAL METASCORE IS ", final_metascore)
          #case where there is nothing to add.
          else:
             final_metascore += 0
@@ -1191,6 +1189,8 @@ class DisplayGameScoreChartView(DetailView):
          if current_date == review_date:
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
+                                          'tc_total_reviews':tc_total_reviews,'tc_fresh_reviews':tc_thumbs_up,
+                                          'tc_rotten_reviews':tc_thumbs_down, 'tc_controlometer':tc_controlometer,'tc_average_rating':tc_average_rating,
                                           'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
                                           'formatted_date':current_date,'system_list':system_list,
                                           'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator}
@@ -1205,6 +1205,8 @@ class DisplayGameScoreChartView(DetailView):
             #finally, we continue adding reviews to the dictionary as normal.
             date_n_score[current_date] = {'total_reviews':total_reviews,'fresh_reviews':thumbs_up,
                                           'rotten_reviews':thumbs_down,'controlometer':controlometer,'average_rating':average_rating,
+                                          'tc_total_reviews':tc_total_reviews,'tc_fresh_reviews':tc_thumbs_up,
+                                          'tc_rotten_reviews':tc_thumbs_down, 'tc_controlometer':tc_controlometer,'tc_average_rating':tc_average_rating,
                                           'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
                                           'formatted_date':current_date,'system_list':system_list,
                                           'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator}
@@ -1214,6 +1216,11 @@ class DisplayGameScoreChartView(DetailView):
       xDates = [date for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       y = [date_n_score[date]['controlometer'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       graph = get_plot(xReviews,xDates,y,cf_dict,game.name)
+
+      tc_xReviews = [date_n_score[date]['tc_total_reviews'] for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
+      tc_xDates = [date for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
+      tc_y = [date_n_score[date]['tc_controlometer'] for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
+      tc_graph = get_plot(tc_xReviews,tc_xDates,tc_y,cf_dict,game.name)
       """
       plt.plot(x, y)
       plt.xlim(first_date,current_date)
@@ -1225,6 +1232,7 @@ class DisplayGameScoreChartView(DetailView):
          'get_pk':get_pk,
          'game':game,
          'graph':graph,
+         'tc_graph':tc_graph,
       }
       
       return context
@@ -1324,4 +1332,5 @@ def get_plot(xReviews,xDates,y,cf_dict,name):
    #clean up the layout.
    plt.tight_layout()
    graph = display_graph()
+   plt.close()
    return graph

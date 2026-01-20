@@ -1,0 +1,15 @@
+
+{% for result in results %}
+<tr>
+    {% if result.poster_link %} 
+        <td><img src="{{result.poster_link}}" width="60px"></td>
+    {% else %}
+        <td><img src="{% static 'images/no-poster.jpg' %}" width="60px"></td>
+    {% endif %}
+    <td>{{result.name}}</td>
+    <td>{{result.release_date}}</td>
+</tr>
+    
+
+{% endfor %}
+
