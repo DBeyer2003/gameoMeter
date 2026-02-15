@@ -230,7 +230,7 @@ class GameInfo(models.Model):
                    'Wii U', 'PlayStation 4', 'Xbox One',
                    '3DS', 'PC', 'PC (2011 Re-Release)', 'PSP', 'PlayStation 5',
                    'Nintendo Switch', 'Nintendo Switch 2', 'PlayStation Vita','iOS', 'Mac',
-                   'PC (2004 Release)']
+                   'PC (2004 Release)', 'Nintendo 64']
     current_systems = []
     reviews = ReviewInfo.objects.filter(id_number=self).exclude(platform__contains="/")
     for review in reviews:
@@ -445,7 +445,7 @@ class UserReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/skyward-sword-wii-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/lego_movie_metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -511,7 +511,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/skyward-sword-wii-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/lego-movie-extra.csv"
   # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -723,6 +723,43 @@ def load_scores():
 
   print("Done.") 
 
+def load_top_publications():
+  """
+  Used to create a list of top critics; so that the user can filter.
+  """
+
+  # open the file for reading one line at a time
+  filename = "/Users/DBeye/new_django_game/review_csvs/top-publication-list.csv"
+
+  # open the file for reading
+  f = open(filename) 
+  # discard the first line containing headers
+  headers = f.readline()
+  tc_list = []
+
+  # go through the entire file one line at a time
+  for line in f:
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+      
+      for critic in fields:
+        tc_list.append(critic)
+      
+    except:
+      print(f"EXCEPTION OCCURED: {fields}.")
+  
+  #print(tc_list)
+
+  mod_list = []
+  for publication in tc_list:
+    mod_pub = publication.replace("\n","")
+    mod_list.append(mod_pub)
+  
+  #print(mod_list)
+
+  return mod_list
+
 def load_top_critics():
   """
   Used to create a list of top critics; so that the user can filter.
@@ -760,7 +797,44 @@ def load_top_critics():
 
   return mod_list
 
-def top_critics_dict():
+def top_publication_dict():
+  """
+  Used to create a list of top critics; so that the user can filter.
+  """
+
+  # open the file for reading one line at a time
+  filename = "/Users/DBeye/new_django_game/review_csvs/top-publication-list.csv"
+
+  # open the file for reading
+  f = open(filename) 
+  # discard the first line containing headers
+  headers = f.readline()
+  tc_list = []
+
+  # go through the entire file one line at a time
+  for line in f:
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+      
+      for critic in fields:
+        tc_list.append(critic)
+      
+    except:
+      print(f"EXCEPTION OCCURED: {fields}.")
+
+  mod_dict = {}
+  pub = 0
+  for publication in tc_list:
+    mod_pub = publication.replace("\n","")
+    mod_dict[pub] = mod_pub
+    pub += 1
+  
+  #print(mod_list)
+
+  return mod_dict
+
+def top_critic_dict():
   """
   Used to create a list of top critics; so that the user can filter.
   """
@@ -796,4 +870,3 @@ def top_critics_dict():
   #print(mod_list)
 
   return mod_dict
-

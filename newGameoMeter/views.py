@@ -15,6 +15,7 @@ from django.views.generic import View, ListView, DetailView, CreateView, UpdateV
 from django.urls import reverse ## NEW
 #from .forms import UpdateProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from itertools import chain
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import authenticate, login
 from django.db.models import Q, Case, When # new
@@ -220,11 +221,10 @@ class ShowGameDetailsView(DetailView):
 
    game_systems = ['PlayStation 2', 'GameCube', 'Wii', 'Xbox',
                    'PlayStation 3', 'Xbox 360',
-                   'Wii U', 'PlayStation 4', 'Xbox One', 'DS',
-                   '3DS', 'PC', 'PSP', 'PlayStation 5',
-                   'Nintendo Switch', 'Nintendo Switch 2', 'PlayStation Vita',
-                   'iOS', 'iOS', 'Mac', 'PC (2011 Re-Release)',
-                   'PC (2004 Release)']
+                   'Wii U', 'PlayStation 4', 'Xbox One',
+                   '3DS', 'PC', 'PC (2011 Re-Release)', 'PSP', 'PlayStation 5',
+                   'Nintendo Switch', 'Nintendo Switch 2', 'PlayStation Vita','iOS', 'Mac',
+                   'PC (2004 Release)', 'Nintendo 64']
 
    def get_context_data(self, *arg,**kwargs):
       context = super(ShowGameDetailsView,self).get_context_data(*arg,**kwargs)
@@ -232,7 +232,7 @@ class ShowGameDetailsView(DetailView):
 
       
 
-      reviews = ReviewInfo.objects.filter(id_number=game).order_by("date_published")
+      reviews = ReviewInfo.objects.filter(id_number=game).order_by('date_published')
 
       #calculates the user review score+average rating.
       user_reviews = UserReviewInfo.objects.filter(game=game)
@@ -269,7 +269,6 @@ class ShowGameDetailsView(DetailView):
       #used to determine the dates at which the cf_symbol is displayed; this is useful for cases where the 
       #filters are turned on, such as Consoles or Top Critics.
       cf_dict = {}
-      is_cf = False
       #number of reviews.
       total_reviews = len(reviews) 
       #used to calculate the percentage of thumbs_up reviews.
@@ -316,6 +315,8 @@ class ShowGameDetailsView(DetailView):
                #original ds.
                elif system == 'DS':
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
+               elif system == 'Wii':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'Wii /') | Q(platform__contains = '/ Wii')
                else:
                   filtered_systems |= Q(platform__icontains = system)
 
@@ -351,16 +352,20 @@ class ShowGameDetailsView(DetailView):
       #used to mark the top critics.
       #makes the top_critics list to filter the publications for the games' score.
       only_tc = False
+      filtered_pubs = Q()
       filtered_critics = Q()
+      tp_list = load_top_publications()
       tc_list = load_top_critics()
-      for top_critic in tc_list:
-         filtered_critics |= Q(publication__iexact = top_critic)
+      for top_pub in tp_list:
+         filtered_pubs |= Q(publication__iexact = top_pub)
+      for top_c in tc_list:
+         filtered_critics |= Q(author__iexact = top_c)
       #use to check if there are any top critic publications within the total critics.
       if 'critic-type' in self.request.GET:
          critic_type = self.request.GET['critic-type']
          if critic_type == 'only-tc':
             only_tc = True
-            reviews = reviews.filter(filtered_critics)
+            reviews = reviews.filter(filtered_pubs | filtered_critics)
       
 
       #number of reviews.
@@ -413,14 +418,8 @@ class ShowGameDetailsView(DetailView):
          average_rating = 0
       
 
-      #THIS IS THE CASE for storing the top critic information.
-      filtered_critics = Q()
-      tc_list = load_top_critics()
-      for top_critic in tc_list:
-         filtered_critics |= Q(publication__iexact = top_critic)
-
       #use to check if there are any top critic publications within the total critics.
-      tc_reviews = reviews.filter(filtered_critics) 
+      tc_reviews = reviews.filter(filtered_critics | filtered_pubs) 
       num_tc_reviews = len(tc_reviews)
       #used to calculate the percentage of top critic thumbs_up reviews.
       tc_thumbs_up = 0 
@@ -455,9 +454,6 @@ class ShowGameDetailsView(DetailView):
             tc_average_rating = math.ceil(float(float(tc_numerator)/float(tc_denominator))*100) / 10
          else:
             tc_average_rating = round(float(float(tc_numerator)/float(tc_denominator))*10,1)
-
-
-
 
 
       #used to return a random selection of (up to three) reviews.
@@ -521,7 +517,7 @@ class ShowGameDetailsView(DetailView):
          #in case we are adding gradients, use this variable to get its bar length.
          extra_length = 0
          for score, quantity in score_dict.items():
-
+            #print("SCORE HERE IS ", score, "and it appears ", quantity)
             """"""
             #the main bar that we are adding.
             if int(score) <= 63:
@@ -552,7 +548,7 @@ class ShowGameDetailsView(DetailView):
 
 
       #used to calculate the metascore
-      uncurved_metascore = 0
+      uncurved_metascore = 0.0
       if len(reviews_with_meta) >= 4:
          #calculates average rating:
          numerator = 0.0
@@ -563,10 +559,7 @@ class ShowGameDetailsView(DetailView):
             numerator += review.metascore
          
          #returns score as ##/100, with metacurve attached.
-         if float(float(numerator)/float(denominator))*100 % 1 >= 0.5:
-            uncurved_metascore = math.ceil(float(float(numerator)/float(denominator))*100)
-         else:
-            uncurved_metascore = round(float(float(numerator)/float(denominator))*100)
+         uncurved_metascore = float(float(numerator)/float(denominator))*100
       
       #the metascore, curved.
       curved_metascore = 0.0
@@ -625,6 +618,8 @@ class ShowGameDetailsView(DetailView):
             else:
                #print(self.name, float(float(numerator)/float(denominator))*10)
                user_rating = round((float(float(rating_numerator)/float(user_denominator))*10))
+      
+      #print("METASCORE UNCURVED LOOKS LIKE: ", uncurved_metascore, "based on ", denominator)
       
 
       context.update({
@@ -702,24 +697,29 @@ class ShowGameReviewsView(DetailView):
       reviews = ReviewInfo.objects.filter(id_number=game)
 
 
+
       #checks if there is a filter to sort between fresh-rotten reviews.
       if 'f-r' in self.request.GET:
-         filter = self.request.GET['f-r']
-         if filter == 'fresh':
+         fr_filter = self.request.GET['f-r']
+         if fr_filter == 'fresh':
             reviews = reviews.filter(fresh_rotten=True)
-         if filter == 'rotten':
+         else:
             reviews = reviews.filter(fresh_rotten=False)
       
       #use to check if there are any top critic publications within the total critics.
       if 'critic-type' in self.request.GET:
+         filtered_pubs = Q()
          filtered_critics = Q()
          critic_type = self.request.GET['critic-type']
          if critic_type == 'only-tc':
             #makes the top_critics list to filter the publications for the games' score.
+            tp_list = load_top_publications()
             tc_list = load_top_critics()
             for top_critic in tc_list:
-               filtered_critics |= Q(publication__iexact = top_critic)
-            reviews = reviews.filter(filtered_critics)
+               filtered_critics |= Q(author__iexact = top_critic)
+            for top_pub in tp_list:
+               filtered_pubs |= Q(publication__iexact = top_pub)
+            reviews = reviews.filter(filtered_pubs | filtered_critics)
       
             #processes option to filter reviews by date published.
       if 'date-range-low' in self.request.GET:
@@ -749,19 +749,48 @@ class ShowGameReviewsView(DetailView):
                #original ds.
                elif system == 'DS':
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
+               elif system == 'Wii':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'Wii /') | Q(platform__contains = '/ Wii')
                else:
                   filtered_systems |= Q(platform__icontains = system)
             reviews = reviews.filter(filtered_systems)
 
+
+      #Case where we order the reviews by their positivity level, which is the
+      #curved hidden scores (NOT the display scores) used to calculate the 
+      #displayed average score.
+      if 'hidden-score' in self.request.GET:
+         print("HID HERE")
+         score_filter = self.request.GET.getlist('hidden-score')
+         print("SCORE FILTER LOOKS LIKE: ", score_filter)
+         if score_filter == 'lowest':
+            print("HIGH HIGH HIGH")
+            #Fresh and rotten reviews will be separated out, as the lowest "Fresh"
+            #review will be marked as higher than the highest "Rotten" review.
+            fresh_reviews = reviews.filter(fresh_rotten=True)
+            print(len(fresh_reviews))
+            rotten_reviews = reviews.filter(fresh_rotten=False)
+            print("FRESH: ", len(fresh_reviews), "ROTTEN, ", len(rotten_reviews))
+            
+            reviews = reviews.order_by('-rating')
+         else:
+            print("OH NO")
+            fresh_reviews = reviews.filter(fresh_rotten=True).order_by('rating')
+            rotten_reviews = reviews.filter(fresh_rotten=False).order_by('rating')
+            reviews = chain(rotten_reviews,fresh_reviews)
       #checks if there is a filter to sort from.
-      if 'date' in self.request.GET:
-         filter = self.request.GET['date']
-         if filter == 'latest':
-            reviews = reviews.order_by("-date_published")
-         if filter == 'earliest':
-            reviews = reviews.order_by("date_published")
+      elif 'date' in self.request.GET:
+         date_filter = self.request.GET['date']
+         print("DATE FILTER looks like: ", date_filter)
+         if date_filter is 'latest':
+            reviews = reviews.order_by('-date_published')
+         if date_filter is 'earliest':
+            reviews = reviews.order_by('date_published')
       else:
-         reviews = reviews.order_by("-date_published")
+         reviews = reviews.order_by('-date_published')
+      
+      
+
 
       context.update({
          'game_reviews':reviews,
@@ -941,6 +970,8 @@ class DisplayGameScoreChartView(DetailView):
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'DS /') | Q(platform__contains = '/ DS')
                elif system == 'PC':
                   filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'PC /') | Q(platform__contains = '/ PC')
+               elif system == 'Wii':
+                  filtered_systems |= Q(platform__iexact = system) | Q(platform__contains = 'Wii /') | Q(platform__contains = '/ Wii')
                else:
                   filtered_systems |= Q(platform__icontains = system)
                #print(filtered_systems)
@@ -973,21 +1004,6 @@ class DisplayGameScoreChartView(DetailView):
                cf_dict[review.date_published] = is_cf 
       
       #print(system_list)
-
-      #use to check if there are any top critic publications within the total critics.
-      only_tc = False
-      tc_list = load_top_critics()
-      if 'critic-type' in self.request.GET:
-         filtered_critics = Q()
-         critic_type = self.request.GET['critic-type']
-         if critic_type == 'only-tc':
-            #makes the top_critics list to filter the publications for the games' score.
-            only_tc = True
-            tc_list = load_top_critics()
-            for top_critic in tc_list:
-               filtered_critics |= Q(publication__iexact = top_critic)
-            ordered_reviews = ordered_reviews.filter(filtered_critics)
-   
       
       #used to remember the first date that a review was published.
       first_date = ordered_reviews.first().date_published
@@ -1020,7 +1036,8 @@ class DisplayGameScoreChartView(DetailView):
       is_cf = False
 
       #used to score top critics info, if available.
-      tc_dict = top_critics_dict()
+      tp_dict = top_publication_dict()
+      tc_dict = top_critic_dict()
       tc_total_reviews = 0
       tc_thumbs_up = 0
       tc_thumbs_down = 0
@@ -1062,7 +1079,7 @@ class DisplayGameScoreChartView(DetailView):
          #uses the dictionary from earlier to determine if the game is currently 
          #certified Fresh or not.
          if review_date in cf_dict:
-            if only_tc == True or controlometer >= 70:
+            if controlometer >= 70:
                is_cf = cf_dict[review_date]
             else:
                is_cf = False
@@ -1070,7 +1087,7 @@ class DisplayGameScoreChartView(DetailView):
             is_cf = False
          
          #create the top critic information.
-         if review.publication in tc_dict.values():
+         if review.publication in tp_dict.values() or review.author in tc_dict.values():
             tc_total_reviews += 1
             #print("FOR THE DATE ", review.date_published, "WE HAVE FOUND FOR TC ", tc_total_reviews, "WITH RECENT PUB ", review.publication)
             #adds to the fresh-rotten values.
@@ -1095,13 +1112,14 @@ class DisplayGameScoreChartView(DetailView):
                tc_average_rating = round(float(float(tc_numerator)/float(tc_denominator))*10,1)
          
          #used to calculate metascore.
-         uncurved_metascore = 0
+         uncurved_metascore = 0.0
          #used to store metascores for color bars.
          score_dict = {}
 
          if review.is_meta == True:
             #counts the number of metareviews. (NOT JUST THE ONES WITH SCORES.)
             num_metareviews += 1
+            #print("NUMBER OF METAREVIEWS SO FAR IS ", num_metareviews, " with the recent reviewer being, ", review.publication)
             # checks if metareview has score; uses it to calculate metascore if true.
             if review.metascore >= 0:  
                #add score to meta_numerator to calculate average score.
@@ -1109,11 +1127,7 @@ class DisplayGameScoreChartView(DetailView):
                #add 100 to denominator because each score is calculated out of 100.
                meta_denominator += 100
                #returns score as ##/100, with metacurve attached.
-               if float(float(meta_numerator)/float(meta_denominator))*100 % 1 >= 0.5:
-                  uncurved_metascore = math.ceil(float(float(meta_numerator)/float(meta_denominator))*100)
-               else:
-                  
-                  uncurved_metascore = round(float(float(meta_numerator)/float(meta_denominator))*100)
+               uncurved_metascore = float(float(meta_numerator)/float(meta_denominator))*100.0
                   #print("LESSER CASE: ", meta_numerator, meta_denominator, uncurved_metascore)
                
 

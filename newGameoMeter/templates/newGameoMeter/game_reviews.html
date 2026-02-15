@@ -15,8 +15,6 @@
 
         <form action="{% url 'game_reviews' game.pk %}" method="get">
 
-            All Reviews: <input type="radio" name="f-r" value="all"><br>
-
             <!--Option to filter between all critics and Top Critics.-->
             All Critics: <input type="radio" name="critic-type" value="all-critics"><br>
             Top Critics Only: <input type="radio" name="critic-type" value="only-tc"><br>
@@ -26,6 +24,9 @@
 
             Sort By Latest First: <input type="radio", name="date",value="latest"><br>
             Sort By Earliest First: <input type="radio", name="date",value="earliest"><br>
+
+            Sort From Most Positive to Least: <input type="radio", name="hidden-score",value="highest"><br>
+            Sort From Least Positive to Most: <input type="radio", name="hidden-score",value="lowest"><br>
 
             
 
@@ -49,7 +50,6 @@
 
         {% for review in game_reviews %}
             {{review.publication}}, {{review.author}}
-
             {% if review.date_published != "N/A" %}
             , {{review.date_published}}
             {% endif %}
