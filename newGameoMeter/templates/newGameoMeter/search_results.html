@@ -20,13 +20,13 @@
                 <div style="background-color:rgb(232, 177, 177); width:100%; padding:5px;border-radius: 5px;">
                     <p><a class="search-title" href="{% url 'game_details' g.pk %}">{{g.name}}</a></p>
                     <!--Displays score if available.-->
-                    {% if g.fake_controlometer %} 
-                        {% if g.fake_controlometer >= 60 %}
+                    {% if g.cached_gm %} 
+                        {% if g.cached_gm >= 60 %}
                             <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
-                            <b>{{g.fake_controlometer}}%</b>
+                            <b>{{g.cached_gm}}%</b>
                         {% else %}
                             <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
-                            <b>{{g.fake_controlometer}}%</b>
+                            <b>{{g.cached_gm}}%</b>
 
                         {% endif %}
 
@@ -36,12 +36,14 @@
 
                     {% endif %}
 
-                    {% if g.user_rating != None %}
-                        {% if g.user_rating > 59 %}
-                            <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
+                    {% if g.cached_user > -1 %}
+                        {% if g.cached_user > 59 %}
+                            <img src="{% static 'images/audience-yay.png' %}" width="20px" height="20px"> <b>{{g.cached_user}}%</b>
                         {% else %}
-                            <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px"> <b>{{g.user_rating}}%</b>
+                            <img src="{% static 'images/audience-nay.png' %}" width="20px" height="20px"> <b>{{g.cached_user}}%</b>
                         {% endif %}
+                    {% else %}
+
                     {% endif %}<br>
 
 

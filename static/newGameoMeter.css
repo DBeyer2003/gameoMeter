@@ -79,6 +79,7 @@ h1.title:hover {
 progress.fresh {
     background: orange;
     width:80%;
+    min-width:400px;
 }
 
 progress.fresh::-webkit-progress-value {
@@ -88,6 +89,7 @@ progress.fresh::-webkit-progress-value {
 progress.rotten {
     background: orange;
     width:80%;
+    min-width:400px;
 }
 
 progress.rotten::-webkit-progress-value {
@@ -110,12 +112,14 @@ div.bars {
 div.game-info-grid {
     display: flex;
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
+    gap: 10px;
     background-color:rgb(199, 157, 101);
     width:70%;
     align-items:center;
     padding:10px;
     border-radius: 10px;
+    min-width:750px;
+    max-width:751px;
 
 }
 
@@ -136,6 +140,11 @@ div.score-info {
     border-radius: 10px;
     display: flex;
     grid-template-columns: 1fr 1fr;
+    max-width:590px;
+}
+
+div.bar-n-consensus {
+    padding-left:10px;
 }
 
 
@@ -152,4 +161,62 @@ img.tomato-main {
 h1.details-title {
     font-size:30px;
     text-decoration: underline;
+    text-align:center;
+}
+
+/*Used to modify the ratings information. */
+p.ratings-info {
+    font-size:13px;
+}
+
+/*The div containing info about the tomato, the reviews
+ and the scores. */
+div.symbolic {
+    min-width:130px;
+}
+
+/*Creates an empty placeholder object for audience score
+if there is no audience score yet.*/
+div.user-info {
+    min-width:60px;
+}
+
+a.button {
+    background-color:rgb(166, 166, 238);
+    border-style:solid;
+    border-radius:4px;
+}
+
+/*Used to store the filters as a clickable popup.*/
+form.filters {
+    background-color:rgb(191, 198, 205);
+    width:200px;
+    padding-top:10px;
+    padding-bottom:15px;
+    padding-left:10px;
+    display:none;
+    z-index: 1;
+    position:absolute;
+
+}
+
+/*Container for the buttons */
+div.button-container{
+    display: grid;
+    grid-template-columns: auto auto auto;
+    gap:10px 5px;
+}
+
+div.sticky {
+  position: sticky;
+  top: 0;
+  padding: 5px;
+  background-color: #cae8ca;
+  border: 2px solid #4CAF50;
+}
+
+button.TCButton {
+    font-size:80px;
+    position: sticky;
+    top: 0;
 }

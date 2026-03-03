@@ -2,6 +2,7 @@ from ast import operator
 from functools import reduce
 import re
 from django.shortcuts import render
+from django.core.cache import cache
 
 # Create your views here.
 from django.shortcuts import render, redirect
@@ -162,52 +163,18 @@ class SearchResultsView(ListView):
           if filters == 'newest':
              games = games.order_by('-release_date')
           if filters == 'highest_critics':
-             
-             f_games = []
-
-             
-             games_with_reviews = games.annotate(num_fresh_ratings=
-                                                 Count("reviewinfo", filter=Q(reviewinfo__fresh_rotten=True))).annotate(
-                                                 total_ratings=Count("reviewinfo")).annotate(
-                                                 critics_rating=Cast('num_fresh_ratings',output_field=FloatField()) 
-                                                   / Cast('total_ratings',output_field=FloatField())
-                                                 )
-                
-             games = games_with_reviews.order_by('-critics_rating')
-             
-
+            games = games.filter(cached_gm__gte=0).order_by('-cached_gm')
           if filters == 'lowest_critics':
-            games_with_reviews = games.annotate(num_fresh_ratings=
-                                                 Count("reviewinfo", filter=Q(reviewinfo__fresh_rotten=True))).annotate(
-                                                 total_ratings=Count("reviewinfo")).annotate(
-                                                 critics_rating=Cast('num_fresh_ratings',output_field=FloatField()) 
-                                                   / Cast('total_ratings',output_field=FloatField())
-                                                 )
-                
-            games = games_with_reviews.filter(total_ratings__gt=0).order_by('critics_rating')
+             games = games.filter(cached_gm__gte=0).order_by('cached_gm')
 
 
           if filters == 'highest_audience':
              f_games = []
-             scores = GameScores.objects.order_by('-user_percent')
-             for s in scores:
-                s_id = s.id_number 
-                f_games.append(s_id)
-             score_ordering = Case(*[When(id_number=id, then=position) for position, id in enumerate(f_games)])
-             games = games.filter(
-                id_number__in=f_games
-             ).order_by(score_ordering)
+             games = games.filter(cached_user__gte=0).order_by('-cached_user')
 
           if filters == 'lowest_audience':
              f_games = []
-             scores = GameScores.objects.order_by('user_percent')
-             for s in scores:
-                s_id = s.id_number 
-                f_games.append(s_id)
-             score_ordering = Case(*[When(id_number=id, then=position) for position, id in enumerate(f_games)])
-             games = games.filter(
-                id_number__in=f_games
-             ).order_by(score_ordering)
+             games = games.filter(cached_user__gte=0).order_by('cached_user')
         
         return games
 
@@ -240,9 +207,15 @@ class ShowGameDetailsView(DetailView):
       
       #store these reviews for extra filtering later.
       modible_reviews = reviews
+
+      #this will be used to check if any of the filters are on; it not, we will
+      #modify the GameInfo's gameoMeter's and User scores so that they can
+      #be quickly displayed in the search engine.
+      check_filters = False
          
       #processes option to filter reviews by date published.
       if 'date-range-low' in self.request.GET:
+         check_filters = True
          firstDate = self.request.GET['date-range-low']
          if firstDate != '':
             convertedDate = datetime.strptime(firstDate,"%Y-%m-%d").date()
@@ -250,6 +223,7 @@ class ShowGameDetailsView(DetailView):
             user_reviews = user_reviews.filter(date_published__gte=convertedDate)
          
       if 'date-range-high' in self.request.GET:
+         check_filters = True
          lastDate = self.request.GET['date-range-high']
          if lastDate != '':
             convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
@@ -301,6 +275,7 @@ class ShowGameDetailsView(DetailView):
 
       #processes option to filter the review scores based on the console.
       if 'console' in self.request.GET:
+         check_filters = True
          #used to recursively filter the systems that reviews have been written for.
          systems = self.request.GET.getlist('console')
          filtered_systems = Q()
@@ -362,6 +337,7 @@ class ShowGameDetailsView(DetailView):
          filtered_critics |= Q(author__iexact = top_c)
       #use to check if there are any top critic publications within the total critics.
       if 'critic-type' in self.request.GET:
+         check_filters = True
          critic_type = self.request.GET['critic-type']
          if critic_type == 'only-tc':
             only_tc = True
@@ -620,6 +596,23 @@ class ShowGameDetailsView(DetailView):
                user_rating = round((float(float(rating_numerator)/float(user_denominator))*10))
       
       #print("METASCORE UNCURVED LOOKS LIKE: ", uncurved_metascore, "based on ", denominator)
+
+      #update the game's score info automatically (but only when)
+      #no filters are applied.
+      if check_filters == False:
+         game.cached_gm = controlometer
+         game.cached_user = user_percent
+         game.save()
+
+
+      #Here is where the actual caching happens.
+
+      #First, we retrieve the cache key.
+      """
+      cache_key = f"game:{self.kwargs['pk']}"
+      cache_game = cache.get(cache_key)
+      """
+      """THIS WILL BE FINISHED LATER"""
       
 
       context.update({
@@ -695,7 +688,6 @@ class ShowGameReviewsView(DetailView):
       game = GameInfo.objects.filter(pk=self.kwargs['pk']).first()
 
       reviews = ReviewInfo.objects.filter(id_number=game)
-
 
 
       #checks if there is a filter to sort between fresh-rotten reviews.

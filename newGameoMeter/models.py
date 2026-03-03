@@ -70,6 +70,10 @@ class GameInfo(models.Model):
   critics_score = models.TextField(blank=True, null=True)
   #used to curve the metabar info taken from the ReviewInfo metascores.
   meta_curve = models.IntegerField(blank=True, null=True, default='0', editable=True)
+  #Info for the game's review scores and user scores, which can be cached in order to
+  #make searching faster. 
+  cached_gm = models.IntegerField(blank=True,null=True,default='-1',editable=True)
+  cached_user = models.IntegerField(blank=True,null=True,default='-1',editable=True)
 
   #used to calculate the game scores scrated from Metacritic.
   def game_scores(self):
@@ -445,7 +449,7 @@ class UserReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/lego_movie_metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/mario-party-8-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -511,7 +515,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/lego-movie-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/mario-party-8-extra.csv"
   # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
