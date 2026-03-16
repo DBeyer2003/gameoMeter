@@ -6,16 +6,24 @@ from django.contrib.auth import views as auth_views
 
 urlpatterns = [ 
   path(r'gameometer', views.home_page_view, name="home"),
+  path(r'gameometer/', views.home_page_view, name="home"),
   path(r'gameometer/all_games', views.ShowAllGamesView.as_view(), name="all_games"),
   path(r'gameometer/search_results', views.SearchResultsView.as_view(), name="search_results"),
-  path(r'gameometer/game/<int:pk>', views.ShowGameDetailsView.as_view(), name="game_details"),
+  
   path(r'gameometer/create_game', views.CreateGameInfoView.as_view(), name="create_game"),
+  #all of the pages related to a specific game.
+  path(r'gameometer/game/<int:pk>', views.ShowGameDetailsView.as_view(), name="game_details"),
+  path(r'gameometer/game/<int:pk>/', views.ShowGameDetailsView.as_view(), name="game_details"),
   path(r'gameometer/game/<int:pk>/reviews', views.ShowGameReviewsView.as_view(), name="game_reviews"),
+  path(r'gameometer/game/<int:pk>/reviews/', views.ShowGameReviewsView.as_view(), name="game_reviews"),
   path(r'gameometer/game/<int:pk>/update_game', views.UpdateGameInfoView.as_view(), name="update_game"),
   path(r'gameometer/game/<int:pk>/update_scores', views.UpdateGameScoresView.as_view(), name="update_scores"),
   path(r'gameometer/game/<int:pk>/score_chart', views.DisplayGameScoreChartView.as_view(), name="score_chart"),
+  #used to update the information for a specific review.
   path(r'gameometer/review/<int:pk>/update_review', views.UpdateReviewInfoView.as_view(), name="update_review"),
   path(r'gameometer/instant_search',views.instant_search, name="instant_search"),
+  #used to display games with a specific tag.
+  path(r'gameometer/tag/<int:pk>', views.ShowTagPageView.as_view(), name="tag_page"),
 
   #authentication URLS
   path('login/', auth_views.LoginView.as_view(template_name='newGameoMeter/login.html'), name='login'),

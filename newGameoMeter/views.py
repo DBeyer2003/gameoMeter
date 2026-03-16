@@ -3,6 +3,8 @@ from functools import reduce
 import re
 from django.shortcuts import render
 from django.core.cache import cache
+import pandas as pd
+from django.utils.formats import date_format
 
 # Create your views here.
 from django.shortcuts import render, redirect
@@ -34,6 +36,10 @@ from io import BytesIO
 import base64
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+import plotly.express as px
+from plotly.offline import plot
+from plotly.graph_objs import Figure, Bar
+
 
 # Create your views here.
 def home_page_view(request):
@@ -191,7 +197,7 @@ class ShowGameDetailsView(DetailView):
                    'Wii U', 'PlayStation 4', 'Xbox One',
                    '3DS', 'PC', 'PC (2011 Re-Release)', 'PSP', 'PlayStation 5',
                    'Nintendo Switch', 'Nintendo Switch 2', 'PlayStation Vita','iOS', 'Mac',
-                   'PC (2004 Release)', 'Nintendo 64']
+                   'PC (2004 Release)', 'Nintendo 64','DS']
 
    def get_context_data(self, *arg,**kwargs):
       context = super(ShowGameDetailsView,self).get_context_data(*arg,**kwargs)
@@ -537,6 +543,8 @@ class ShowGameDetailsView(DetailView):
          #returns score as ##/100, with metacurve attached.
          uncurved_metascore = float(float(numerator)/float(denominator))*100
       
+      print("THE UNCURVED METSCORE LOOKS LIKE ", uncurved_metascore, "based on ", len(reviews_with_meta), " reviews.")
+      
       #the metascore, curved.
       curved_metascore = 0.0
       #the green case (75-100)
@@ -602,7 +610,14 @@ class ShowGameDetailsView(DetailView):
       if check_filters == False:
          game.cached_gm = controlometer
          game.cached_user = user_percent
+         game.cached_meta = rounded_metascore
+         game.cached_cf = is_cf
          game.save()
+      
+      get_tags = [tag for tag in game.tag_list.all() if tag in game.tag_list.all()]
+
+      for tag in get_tags:
+         print(tag.tag_name)
 
 
       #Here is where the actual caching happens.
@@ -774,9 +789,9 @@ class ShowGameReviewsView(DetailView):
       elif 'date' in self.request.GET:
          date_filter = self.request.GET['date']
          print("DATE FILTER looks like: ", date_filter)
-         if date_filter is 'latest':
+         if date_filter == 'latest':
             reviews = reviews.order_by('-date_published')
-         if date_filter is 'earliest':
+         if date_filter == 'earliest':
             reviews = reviews.order_by('date_published')
       else:
          reviews = reviews.order_by('-date_published')
@@ -874,7 +889,30 @@ class UpdateReviewInfoView(UpdateView):
     info = scores.id_number
     #reverse to show the GameInfo page.
     return reverse('game_details',kwargs={'pk':info.pk})
+
   
+class ShowTagPageView(DetailView):
+   '''
+   Displays the games that are marked with a specific tag.
+   '''
+   model = GameTag
+   template_name = 'newGameoMeter/tag_page.html'
+   context_object_name = 'tag'
+
+
+   def get_context_data(self, *arg,**kwargs):
+      context = super(ShowTagPageView,self).get_context_data(*arg,**kwargs)
+      tag = GameTag.objects.filter(pk=self.kwargs['pk']).first()
+
+      #retrieves the games that are tagged with the specific tag name.
+      tagged_games = GameInfo.objects.filter(tag_list__in=[tag])
+
+      context = {
+         'games': tagged_games,
+      }
+
+      return context
+
 
 
 class DisplayGameScoreChartView(DetailView):
@@ -1219,26 +1257,75 @@ class DisplayGameScoreChartView(DetailView):
       
       # Create the visual graph.
       xReviews = [date_n_score[date]['total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
-      xDates = [date for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xFresh = [date_n_score[date]['fresh_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xRotten = [date_n_score[date]['rotten_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xDates = [date_format(date) for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xIsCf = [date_n_score[date]['is_cf'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xAverage = [date_n_score[date]['average_rating'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+
+      xMetascores = [date_n_score[date]['metascore'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5] 
+      xNumMeta = [date_n_score[date]['num_metareviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5] 
+
       y = [date_n_score[date]['controlometer'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
-      graph = get_plot(xReviews,xDates,y,cf_dict,game.name)
 
       tc_xReviews = [date_n_score[date]['tc_total_reviews'] for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
       tc_xDates = [date for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
       tc_y = [date_n_score[date]['tc_controlometer'] for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
-      tc_graph = get_plot(tc_xReviews,tc_xDates,tc_y,cf_dict,game.name)
+      #tc_graph = get_plot(tc_xReviews,tc_xDates,tc_y,cf_dict,game.name)
       """
       plt.plot(x, y)
       plt.xlim(first_date,current_date)
       plt.ylim(0, 100)
       """
 
+      df = pd.DataFrame({
+         'xReviews':xReviews,
+         'y':y,
+         'xAverage':xAverage,
+         'xFresh':xFresh,
+         'xRotten':xRotten,
+         'xDates':xDates,
+         'xMetascores': xMetascores,
+         'xIsCf': xIsCf,
+         'xNumMeta': xNumMeta,
+      })
+      #print(date for date in xDates)
+      #print(xDates)
+
+      review_chart = px.scatter(data_frame=df,
+                             x='xReviews',
+                             y='y',
+                             custom_data=['xAverage','xFresh','xRotten',
+                                          'xDates','xMetascores','xIsCf',
+                                          'xNumMeta'],
+                             range_y=[0,100],
+                             title=game.name)
+      review_chart.update_layout(xaxis_title="Number of Reviews",
+                              yaxis_title="Gameometer")
+      review_chart.update_xaxes(dtick=10)
+      review_chart.add_traces(px.line(x=xReviews,
+                                         y=y,
+                                         title=game.name).data)
+      review_chart.update_traces(
+         hovertemplate="<br>".join([
+            "<b><u>Date:</u></b> %{customdata[3]}",
+            "Gameometer: %{customdata[5]}%{y}%",
+            "Average Rating: %{customdata[0]}/10<br>",
+            "<b>Total Reviews: %{x}</b>",
+            "Fresh Reviews: %{customdata[1]}",
+            "Rotten Reviews: %{customdata[2]}",
+            "--------------",
+            "Metascore: %{customdata[4]} based on %{customdata[6]} reviews",
+         ])
+      )
+      review_chart_div:str = plot(review_chart,output_type="div")
+
       context = {
          'date_n_score':date_n_score,
          'get_pk':get_pk,
          'game':game,
-         'graph':graph,
-         'tc_graph':tc_graph,
+         #'tc_graph':tc_graph,
+         'test_graph': review_chart_div,
       }
       
       return context
@@ -1264,7 +1351,7 @@ def display_graph():
 def getImage(path):
    return OffsetImage(plt.imread(path, format="png"), zoom=.05)
 
-def get_plot(xReviews,xDates,y,cf_dict,name):
+def get_plot(x1,xDates,y,cf_dict,name):
    #uses anti-grain geometry to visualize the chart.
    plt.switch_backend('AGG')
    #set size of figure.
@@ -1277,7 +1364,7 @@ def get_plot(xReviews,xDates,y,cf_dict,name):
    #plots the chart with Fresh, Certified Fresh or Rotten symbols
    #based on the score.
 
-   plt.scatter(xReviews,y,alpha=0.8)
+   plt.scatter(x1,y,alpha=0.8)
    
    #used for displaying the individual scores
    #on the chart; if the score shifts significantly
@@ -1289,7 +1376,7 @@ def get_plot(xReviews,xDates,y,cf_dict,name):
    fig, ax = plt.subplots()
    #only displays info if there is enough info to chart.
    if len(y) >= 0:
-      for x0, xDate, y0 in zip(xReviews,xDates,y):
+      for x0, xDate, y0 in zip(x1,xDates,y):
          #check if the game is certified fresh or not.
          if cf_dict[xDate] == True:
             ab = AnnotationBbox(getImage('static/images/certified-fresh.png'), (x0, y0), frameon=False)
@@ -1309,10 +1396,10 @@ def get_plot(xReviews,xDates,y,cf_dict,name):
             current_percent = y0
          """
       #add dotted line for visual clarity.
-      plt.plot(xReviews,y,linestyle='dotted',color='black')
+      plt.plot(x1,y,linestyle='dotted',color='black')
 
       #used to display the number of reviews on the graph.
-      plt.xticks(np.arange(0,max(xReviews),10))
+      plt.xticks(np.arange(0,max(x1),10))
       #used to display the year values on the x-axis.
       #plt.xticks(np.arange(min_year,max_year,1))
       #sets the percentage range (0,100) for plot, as
@@ -1340,3 +1427,4 @@ def get_plot(xReviews,xDates,y,cf_dict,name):
    graph = display_graph()
    plt.close()
    return graph
+

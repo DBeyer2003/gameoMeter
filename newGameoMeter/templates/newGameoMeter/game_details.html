@@ -345,10 +345,18 @@
 
 
     PUBLISHER: {{game.publishers}}<br>
-    DEVELOPER: {{game.developeres}}<br>
+    DEVELOPER: {{game.developers}}<br>
     RELEASE DATE: {{game.release_date}}<br>
     GENRE: {{game.genre}}<br>
     PLATFORMS: {{game.platforms}}<br>
+
+    {% if game.tag_list %}
+        TAGS: 
+        {% for tag in game.tag_list.all %}
+            <a href="{% url 'tag_page' tag.pk %}">{{tag.tag_name}}</a>
+        {% endfor %}
+    {% endif %}
+    <br>
 
     {% if game.get_reviews == None %}
         No reviews yet.

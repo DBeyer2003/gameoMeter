@@ -13,7 +13,16 @@ import random
 
 # Create your models here.
 
+class GameTag(models.Model):
+  '''
+  Used to tag a game as being part of a specific group or sub-group (i.e. a Mario
+  game is part of the Mario series; the New Super Mario Bros games are part of the
+  New Super Mario Bros series, etc.)
+  '''
+  tag_name = models.TextField(blank=False)
 
+  def __str__(self):
+    return f'The tag_name {self.tag_name} has been created.'
 
 class GameScores(models.Model):
   '''
@@ -74,6 +83,11 @@ class GameInfo(models.Model):
   #make searching faster. 
   cached_gm = models.IntegerField(blank=True,null=True,default='-1',editable=True)
   cached_user = models.IntegerField(blank=True,null=True,default='-1',editable=True)
+  cached_meta  = models.IntegerField(blank=True,null=True,default='-1',editable=True)
+  cached_cf  = models.BooleanField(blank=True,null=True,default=False)
+  #Used to store multiple custom tags for each game (e.g. the Paper Mario games
+  #will get labeled with the Paper Mario tag.)
+  tag_list = models.ManyToManyField(GameTag, related_name='tags')
 
   #used to calculate the game scores scrated from Metacritic.
   def game_scores(self):
@@ -234,7 +248,7 @@ class GameInfo(models.Model):
                    'Wii U', 'PlayStation 4', 'Xbox One',
                    '3DS', 'PC', 'PC (2011 Re-Release)', 'PSP', 'PlayStation 5',
                    'Nintendo Switch', 'Nintendo Switch 2', 'PlayStation Vita','iOS', 'Mac',
-                   'PC (2004 Release)', 'Nintendo 64']
+                   'PC (2004 Release)', 'Nintendo 64','DS']
     current_systems = []
     reviews = ReviewInfo.objects.filter(id_number=self).exclude(platform__contains="/")
     for review in reviews:
@@ -372,23 +386,6 @@ class GameInfo(models.Model):
   def __str__(self):
     return f'The video game {self.name} has been added with ID number {self.id_number}.'
 
-class GameTag(models.Model):
-  '''
-  Used to tag a game as being part of a specific group or sub-group (i.e. a Mario
-  game is part of the Mario series; the New Super Mario Bros games are part of the
-  New Super Mario Bros series, etc.)
-  '''
-  tag_name = models.TextField(blank=False)
-  #The games that the tag can be added to.
-  games = models.ManyToManyField(GameInfo, blank=True)
-
-  def __str__(self):
-    return f'The tag_name {self.tag_name} has been created.'
-
-
-
-
-
 class ReviewInfo(models.Model):
   '''
   Stores the information for each individual game review, identified using the 
@@ -449,7 +446,7 @@ class UserReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/mario-party-8-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/yoshis-new-island-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -515,7 +512,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/mario-party-8-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/yoshis-new-island-extra.csv"
   # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -585,7 +582,7 @@ def load_user_scores():
   '''
 
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-gamefaqs.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/mario-party-9-gamefaqs.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -874,3 +871,58 @@ def top_critic_dict():
   #print(mod_list)
 
   return mod_dict
+
+def load_tags():
+  """
+  Loads the individual tags and the corresponding game ids.
+  """
+  # open the file for reading one line at a time
+  filename = "/Users/DBeye/new_django_game/review_hub/tagList.csv"
+
+  # open the file for reading
+  f = open(filename) 
+  # discard the first line containing headers
+  headers = f.readline()
+
+  for line in f:
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+      #finds the corresponding game.
+      print(fields[0])
+      
+      tag = GameTag(
+        tag_name=fields[0],
+      )
+      tag.save()
+
+      print(f"tag {tag.tag_name} has been created.")
+
+      if fields[1] != '[]' and fields[1] != '[]\n':
+        tags = fields[1].replace('[', '').replace(']', '').replace('\n','').split('~')
+        print(tags)
+        
+        for id in tags:
+          try:
+            print(id)
+            
+            game = GameInfo.objects.filter(id_number=id).first()
+            
+            print("We are targeting the game ", game.name)
+            print("Tag PK looks like ", tag.pk)
+            
+            game.tag_list.add(GameTag.objects.get(pk=tag.pk))
+            print("This game's tag_list now looks like ", game.tag_list)
+            
+            print("This game how has the tag ", game.tag_list)
+            
+            game.save()
+
+            print(f"The tag {tag.tag_name} has been added to the game {game.name}.")
+            """"""
+          except:
+            print(f"EXCEPTION OCCURED FOR ID: ", id)
+          
+        """"""
+    except:
+      print(f"EXCEPTION OCCURED: {fields}.")

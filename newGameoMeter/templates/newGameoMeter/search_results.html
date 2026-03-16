@@ -21,7 +21,10 @@
                     <p><a class="search-title" href="{% url 'game_details' g.pk %}">{{g.name}}</a></p>
                     <!--Displays score if available.-->
                     {% if g.cached_gm %} 
-                        {% if g.cached_gm >= 60 %}
+                        {% if g.cached_cf == True %}
+                            <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
+                            <b>{{g.cached_gm}}%</b>
+                        {% elif g.cached_gm >= 60 %}
                             <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
                             <b>{{g.cached_gm}}%</b>
                         {% else %}
@@ -49,6 +52,10 @@
 
                     ID: {{g.id_number}}<br>
                     PK: {{g.pk}}<br>
+
+                    {% if g.cached_meta > -1 %}
+                        {{g.cached_meta}}
+                    {% endif %}
                     <p>{{g.publishers}}, {{g.developers}}, {{g.release_date}}</p>
 
                     
