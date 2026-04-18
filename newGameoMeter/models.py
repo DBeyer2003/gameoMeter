@@ -82,12 +82,19 @@ class GameInfo(models.Model):
   #Info for the game's review scores and user scores, which can be cached in order to
   #make searching faster. 
   cached_gm = models.IntegerField(blank=True,null=True,default='-1',editable=True)
+  cached_ave = models.FloatField(blank=True,null=True,default='-1.0',editable=True)
+  cached_num_fresh = models.IntegerField(blank=True,null=True,default='-1',editable=True)
+  cached_num_rotten = models.IntegerField(blank=True,null=True,default='-1',editable=True)
   cached_user = models.IntegerField(blank=True,null=True,default='-1',editable=True)
+  cached_user_ave = models.FloatField(blank=True,null=True,default='-1.0',editable=True)
   cached_meta  = models.IntegerField(blank=True,null=True,default='-1',editable=True)
   cached_cf  = models.BooleanField(blank=True,null=True,default=False)
   #Used to store multiple custom tags for each game (e.g. the Paper Mario games
   #will get labeled with the Paper Mario tag.)
   tag_list = models.ManyToManyField(GameTag, related_name='tags')
+  #Used to store information about the game at specific dates, so that the info can
+  #be quickly referenced by the tag page.
+  json_info = models.JSONField("JSONInfo", default={})
 
   #used to calculate the game scores scrated from Metacritic.
   def game_scores(self):
@@ -446,7 +453,7 @@ class UserReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/yoshis-new-island-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/sonic_unleashed_metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -512,7 +519,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/yoshis-new-island-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-unleashed-extra.csv"
   # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -582,7 +589,7 @@ def load_user_scores():
   '''
 
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/mario-party-9-gamefaqs.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-gamefaqs.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers

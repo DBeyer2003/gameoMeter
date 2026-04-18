@@ -5,7 +5,9 @@
 {% block content %}
 
     {% for game in games %}
-        {{game.name}}
+        - <a class="search-title" href="{% url 'game_details' game.pk %}">{{game.name}}</a><br>
     {% endfor %}
+
+    <a href="{% url 'tag_chart' tag_pk  %}">SEE SCORE CHART FOR TAGGED GAMES.</a>
 
 {% endblock %}

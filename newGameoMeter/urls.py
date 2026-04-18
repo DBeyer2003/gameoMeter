@@ -19,11 +19,14 @@ urlpatterns = [
   path(r'gameometer/game/<int:pk>/update_game', views.UpdateGameInfoView.as_view(), name="update_game"),
   path(r'gameometer/game/<int:pk>/update_scores', views.UpdateGameScoresView.as_view(), name="update_scores"),
   path(r'gameometer/game/<int:pk>/score_chart', views.DisplayGameScoreChartView.as_view(), name="score_chart"),
+  path(r'gameometer/game/<int:pk>/rating_breakdown', views.DisplayGameRatingBreakdownView.as_view(), name="rating_breakdown"),
   #used to update the information for a specific review.
   path(r'gameometer/review/<int:pk>/update_review', views.UpdateReviewInfoView.as_view(), name="update_review"),
   path(r'gameometer/instant_search',views.instant_search, name="instant_search"),
   #used to display games with a specific tag.
   path(r'gameometer/tag/<int:pk>', views.ShowTagPageView.as_view(), name="tag_page"),
+  #used to display the chart of tagged games over time.
+  path(r'gameometer/tag/<int:pk>/tag_chart',views.ShowTagChartView.as_view(), name="tag_chart"),
 
   #authentication URLS
   path('login/', auth_views.LoginView.as_view(template_name='newGameoMeter/login.html'), name='login'),

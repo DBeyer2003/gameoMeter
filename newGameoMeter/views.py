@@ -10,6 +10,7 @@ from django.utils.formats import date_format
 from django.shortcuts import render, redirect
 from django.http import HttpRequest, HttpResponse, JsonResponse
 import time
+from PIL import Image
 import random
 from datetime import timedelta, date, datetime
 from . models import *
@@ -40,6 +41,7 @@ import plotly.express as px
 from plotly.offline import plot
 from plotly.graph_objs import Figure, Bar
 
+import pathlib
 
 # Create your views here.
 def home_page_view(request):
@@ -172,7 +174,10 @@ class SearchResultsView(ListView):
             games = games.filter(cached_gm__gte=0).order_by('-cached_gm')
           if filters == 'lowest_critics':
              games = games.filter(cached_gm__gte=0).order_by('cached_gm')
-
+          if filters == 'highest_metascore':
+             games = games.filter(cached_gm__gt=0).order_by('-cached_meta')
+          if filters == 'lowest_metascore':
+             games = games.filter(cached_gm__gt=0).order_by('cached_meta')
 
           if filters == 'highest_audience':
              f_games = []
@@ -556,7 +561,7 @@ class ShowGameDetailsView(DetailView):
       else:
          curved_metascore = float(float((float(uncurved_metascore)/49.0))*39.0)
       
-      rounded_metascore = 0
+      rounded_metascore = -1
       #rounds the curved_metascore, adds the curve.
       if curved_metascore % 1 >= 0.5:
         rounded_metascore = math.ceil(curved_metascore)
@@ -609,8 +614,13 @@ class ShowGameDetailsView(DetailView):
       #no filters are applied.
       if check_filters == False:
          game.cached_gm = controlometer
-         game.cached_user = user_percent
-         game.cached_meta = rounded_metascore
+         if user_denominator > 0:
+            game.cached_user = user_percent
+            game.cached_user_average = user_rating
+         if len(reviews_with_meta) <= 0:
+            game.cached_meta = -1
+         else:
+            game.cached_meta = rounded_metascore
          game.cached_cf = is_cf
          game.save()
       
@@ -628,6 +638,8 @@ class ShowGameDetailsView(DetailView):
       cache_game = cache.get(cache_key)
       """
       """THIS WILL BE FINISHED LATER"""
+
+      print("Check for user reviews over 10. There are ", len(UserReviewInfo.objects.filter(game=game).filter(rating__gt=10)))
       
 
       context.update({
@@ -643,7 +655,7 @@ class ShowGameDetailsView(DetailView):
          'tc_average_rating': tc_average_rating,
          'random_reviews': random_reviews,
          'metascore': rounded_metascore,
-         'num_meta': len(reviews_with_meta),
+         'num_meta': len(reviews.filter(is_meta=True)),
          'bar_length': bar_length,
          'meta_bars': meta_bars,
          'is_cf': is_cf,
@@ -704,9 +716,10 @@ class ShowGameReviewsView(DetailView):
 
       reviews = ReviewInfo.objects.filter(id_number=game)
 
-
+      print("SELF REQUEST GET looks like ", self.request.GET)
       #checks if there is a filter to sort between fresh-rotten reviews.
       if 'f-r' in self.request.GET:
+         print("Fresh/Rotten filter looks like: ", self.request.GET.getlist('f-r'))
          fr_filter = self.request.GET['f-r']
          if fr_filter == 'fresh':
             reviews = reviews.filter(fresh_rotten=True)
@@ -719,6 +732,7 @@ class ShowGameReviewsView(DetailView):
          filtered_critics = Q()
          critic_type = self.request.GET['critic-type']
          if critic_type == 'only-tc':
+            print("We're only showing the top critics.", self.request.GET.getlist('critic-type'))
             #makes the top_critics list to filter the publications for the games' score.
             tp_list = load_top_publications()
             tc_list = load_top_critics()
@@ -727,6 +741,40 @@ class ShowGameReviewsView(DetailView):
             for top_pub in tp_list:
                filtered_pubs |= Q(publication__iexact = top_pub)
             reviews = reviews.filter(filtered_pubs | filtered_critics)
+      
+      
+      #Case where we order the reviews by their positivity level, which is the
+      #curved hidden scores (NOT the display scores) used to calculate the 
+      #displayed average score.
+      if 'hidden-score' in self.request.GET:
+         print("HID HERE")
+         score_filter = self.request.GET['hidden-score']
+         print("score_filter looks like, ", score_filter)
+         if score_filter == 'highest':
+            print("HIGH HIGH HIGH")
+            #Fresh and rotten reviews will be separated out, as the lowest "Fresh"
+            #review will be marked as higher than the highest "Rotten" review.
+            fresh_reviews = reviews.filter(fresh_rotten=True).order_by('-rating')
+            print(len(fresh_reviews))
+            rotten_reviews = reviews.filter(fresh_rotten=False).order_by('-rating')
+            print("FRESH: ", len(fresh_reviews), "ROTTEN, ", len(rotten_reviews))
+            
+            reviews = chain(fresh_reviews,rotten_reviews)
+         else:
+            print("OH NO")
+            fresh_reviews = reviews.filter(fresh_rotten=True).order_by('rating')
+            rotten_reviews = reviews.filter(fresh_rotten=False).order_by('rating')
+            reviews = chain(rotten_reviews,fresh_reviews)
+      #checks if there is a filter to sort from.
+      elif 'date' in self.request.GET:
+         date_filter = self.request.GET['date']
+         print("DATE FILTER looks like: ", date_filter)
+         if date_filter == 'latest':
+            reviews = reviews.order_by('-date_published')
+         if date_filter == 'earliest':
+            reviews = reviews.order_by('date_published')
+      else:
+         reviews = reviews.order_by('-date_published')
       
             #processes option to filter reviews by date published.
       if 'date-range-low' in self.request.GET:
@@ -763,38 +811,6 @@ class ShowGameReviewsView(DetailView):
             reviews = reviews.filter(filtered_systems)
 
 
-      #Case where we order the reviews by their positivity level, which is the
-      #curved hidden scores (NOT the display scores) used to calculate the 
-      #displayed average score.
-      if 'hidden-score' in self.request.GET:
-         print("HID HERE")
-         score_filter = self.request.GET.getlist('hidden-score')
-         print("SCORE FILTER LOOKS LIKE: ", score_filter)
-         if score_filter == 'lowest':
-            print("HIGH HIGH HIGH")
-            #Fresh and rotten reviews will be separated out, as the lowest "Fresh"
-            #review will be marked as higher than the highest "Rotten" review.
-            fresh_reviews = reviews.filter(fresh_rotten=True)
-            print(len(fresh_reviews))
-            rotten_reviews = reviews.filter(fresh_rotten=False)
-            print("FRESH: ", len(fresh_reviews), "ROTTEN, ", len(rotten_reviews))
-            
-            reviews = reviews.order_by('-rating')
-         else:
-            print("OH NO")
-            fresh_reviews = reviews.filter(fresh_rotten=True).order_by('rating')
-            rotten_reviews = reviews.filter(fresh_rotten=False).order_by('rating')
-            reviews = chain(rotten_reviews,fresh_reviews)
-      #checks if there is a filter to sort from.
-      elif 'date' in self.request.GET:
-         date_filter = self.request.GET['date']
-         print("DATE FILTER looks like: ", date_filter)
-         if date_filter == 'latest':
-            reviews = reviews.order_by('-date_published')
-         if date_filter == 'earliest':
-            reviews = reviews.order_by('date_published')
-      else:
-         reviews = reviews.order_by('-date_published')
       
       
 
@@ -903,16 +919,67 @@ class ShowTagPageView(DetailView):
    def get_context_data(self, *arg,**kwargs):
       context = super(ShowTagPageView,self).get_context_data(*arg,**kwargs)
       tag = GameTag.objects.filter(pk=self.kwargs['pk']).first()
+      print("The tag pk is ", self.kwargs['pk'])
 
       #retrieves the games that are tagged with the specific tag name.
       tagged_games = GameInfo.objects.filter(tag_list__in=[tag])
 
       context = {
          'games': tagged_games,
+         'tag_pk': self.kwargs['pk'],
       }
 
       return context
 
+class ShowTagChartView(DetailView):
+   '''
+   Used to display a graph of the tagged games' scores in order of release.
+   '''
+   model = GameTag
+   template_name = 'newGameoMeter/tag_chart.html'
+   context_object_name = 'tag'
+
+
+   def get_context_data(self, *arg,**kwargs):
+      context = super(ShowTagChartView,self).get_context_data(*arg,**kwargs)
+      tag = GameTag.objects.filter(pk=self.kwargs['pk']).first()
+
+      games = GameInfo.objects.filter(tag_list__tag_name__icontains=tag.tag_name).order_by('release_date')
+
+      game_values = games.values()
+
+      #for game in games:
+      #   load_json = json.loads(game.json_info)
+      #   for info in load_json:
+      #      print(game.name, eval(info)[0],eval(info)[1])
+
+      if "num-reviews" in self.request.GET:
+         print("Banananana")
+
+
+      #used to chart the review information, and create hover blurbs for
+      #each trace.
+      review_chart = px.scatter(data_frame=game_values,
+                             x='name',
+                             y='cached_gm',
+                             custom_data=[],
+                             range_y=[0,103],
+                             title=tag.tag_name+", by GameoMeter.",)
+      review_chart.update_layout(xaxis_title="Game Title",
+                              yaxis_title="Gameometer")
+      #review_chart.update_xaxes(dtick=10)
+      review_chart.update_yaxes(dtick=10)
+      review_chart.update_traces(mode="markers+lines", showlegend=True)
+
+      review_chart_div:str = plot(review_chart,output_type="div")
+      
+      context = {
+         'games':games,
+         'review_chart':review_chart_div,
+         'get_pk': self.kwargs['pk'],
+      }
+
+      return context
 
 
 class DisplayGameScoreChartView(DetailView):
@@ -979,9 +1046,15 @@ class DisplayGameScoreChartView(DetailView):
 
       #stores systems in a list.
       system_list = []
+
+      #this will be used to check if any of the filters are on; it not, we will
+      #modify the GameInfo's JSONfield attribute to store information at 
+      #specific dates.
+      check_filters = False
       
       #processes option to filter the review scores based on the console.
       if 'console' in self.request.GET:
+         check_filters = True
          #used to recursively filter the systems that reviews have been written for.
          systems = self.request.GET.getlist('console')
          filtered_systems = Q()
@@ -1092,6 +1165,8 @@ class DisplayGameScoreChartView(DetailView):
          #used to calculate average rating.
          numerator += review.rating
          denominator = total_reviews*100
+
+         days_since_release = (review.date_published-game.release_date).days
          
          
          #the current average rating.
@@ -1237,7 +1312,8 @@ class DisplayGameScoreChartView(DetailView):
                                           'tc_rotten_reviews':tc_thumbs_down, 'tc_controlometer':tc_controlometer,'tc_average_rating':tc_average_rating,
                                           'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
                                           'formatted_date':current_date,'system_list':system_list,
-                                          'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator}
+                                          'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator,
+                                          'days_since_release':days_since_release}
          #case where we create a new nested dictionary for a new date.
          else:
             #check to make sure that the prior date_n_score value is there.
@@ -1253,24 +1329,66 @@ class DisplayGameScoreChartView(DetailView):
                                           'tc_rotten_reviews':tc_thumbs_down, 'tc_controlometer':tc_controlometer,'tc_average_rating':tc_average_rating,
                                           'metascore':final_metascore,'num_metareviews':num_metareviews,'is_cf':is_cf,
                                           'formatted_date':current_date,'system_list':system_list,
-                                          'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator}
+                                          'user_percent': user_percent, 'user_rating':user_rating,'total_user_ratings':user_denominator,
+                                          'days_since_release':days_since_release}
       
       # Create the visual graph.
       xReviews = [date_n_score[date]['total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       xFresh = [date_n_score[date]['fresh_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       xRotten = [date_n_score[date]['rotten_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       xDates = [date_format(date) for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
-      xIsCf = [date_n_score[date]['is_cf'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xIsCf = [['/Users/DBeye/new_django_game/static/images/certified-fresh.png' if date_n_score[date]['is_cf'] 
+                else '/Users/DBeye/new_django_game/static/images/fresh.png' if date_n_score[date]['controlometer'] >= 60 
+                else '/Users/DBeye/new_django_game/static/images/rotten.png'] 
+                for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       xAverage = [date_n_score[date]['average_rating'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xDaysSinceRelease = [str(-1*date_n_score[date]['days_since_release']) + " day before release."
+                             if date_n_score[date]['days_since_release'] == -1
+                           else str(-1*date_n_score[date]['days_since_release']) + " days until release."
+                             if date_n_score[date]['days_since_release'] < 0
+                           else "The day of release."
+                             if date_n_score[date]['days_since_release'] == 0
+                           else str(date_n_score[date]['days_since_release']) + " day after release."
+                             if date_n_score[date]['days_since_release'] == 1
+                           else str(date_n_score[date]['days_since_release'])+" days after release."
+                            for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
 
-      xMetascores = [date_n_score[date]['metascore'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5] 
+      #displays a message for the metascores
+      xMetascores = [["No reviews yet."
+                        if date_n_score[date]['num_metareviews'] == 0
+                     else "Only "+str(date_n_score[date]['num_metareviews'])+" review so far."
+                        if date_n_score[date]['num_metareviews'] == 1
+                     else str(date_n_score[date]['metascore'])+" based on "+str(date_n_score[date]['num_metareviews'])+" reviews." 
+                        if date_n_score[date]['num_metareviews'] >= 4
+                     else "Only "+str(date_n_score[date]['num_metareviews'])+" reviews so far."] 
+                        for date in date_n_score if date_n_score[date]['total_reviews'] >= 5] 
+      #displays the actual numbers for the metascores, used for the x axis.
+      yMetascores = [None if date_n_score[date]['num_metareviews'] < 4
+                     else date_n_score[date]['metascore']
+                     for date in date_n_score if date_n_score[date]['total_reviews'] >= 5] 
+      
       xNumMeta = [date_n_score[date]['num_metareviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5] 
+
 
       y = [date_n_score[date]['controlometer'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
 
-      tc_xReviews = [date_n_score[date]['tc_total_reviews'] for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
-      tc_xDates = [date for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
-      tc_y = [date_n_score[date]['tc_controlometer'] for date in date_n_score if date_n_score[date]['tc_total_reviews'] >= 5]
+      tc_xReviews = [date_n_score[date]['tc_total_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      tc_xAverage = [date_n_score[date]['tc_average_rating'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      tc_xFresh = [date_n_score[date]['tc_fresh_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      tc_xRotten = [date_n_score[date]['tc_rotten_reviews'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      x_tcIsCf = ['/Users/DBeye/new_django_game/static/images/certified-fresh.png' if date_n_score[date]['is_cf'] 
+                else '/Users/DBeye/new_django_game/static/images/fresh.png' if date_n_score[date]['tc_controlometer'] >= 60 
+                else '/Users/DBeye/new_django_game/static/images/rotten.png'
+                for date in date_n_score if date_n_score[date]['total_reviews'] >= 5] 
+
+      tc_y = [date_n_score[date]['tc_controlometer'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+
+      xUserRatings = [date_n_score[date]['total_user_ratings'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xUserScore = [date_n_score[date]['user_rating'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      user_y = [date_n_score[date]['user_percent'] for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
+      xYayNay = [['/Users/DBeye/new_django_game/static/images/audience-yay.png' if date_n_score[date]['user_percent'] >= 60 
+                else '/Users/DBeye/new_django_game/static/images/audience-nay.png'] 
+                for date in date_n_score if date_n_score[date]['total_reviews'] >= 5]
       #tc_graph = get_plot(tc_xReviews,tc_xDates,tc_y,cf_dict,game.name)
       """
       plt.plot(x, y)
@@ -1286,38 +1404,178 @@ class DisplayGameScoreChartView(DetailView):
          'xRotten':xRotten,
          'xDates':xDates,
          'xMetascores': xMetascores,
+         'yMetascores': yMetascores,
          'xIsCf': xIsCf,
          'xNumMeta': xNumMeta,
-      })
+         'xDaysSinceRelease':xDaysSinceRelease,
+         'tc_y': tc_y,
+         'tc_xReviews':tc_xReviews,
+         'tc_xAverage':tc_xAverage,
+         'tc_xFresh':tc_xFresh,
+         'tc_xRotten':tc_xRotten,
+         'xUserRatings':xUserRatings,
+         'xUserScore':xUserScore,
+         'user_y':user_y,
+         'xYayNay': xYayNay
+      #the index will be a tuple of the date, and the 
+      #number of reviews.
+      }, index = [(date.strftime("%Y-%m-%d"),date_n_score[date]['total_reviews']) for date in date_n_score if date_n_score[date]['total_reviews'] >= 5])
+      #saves information as a JSON, and stores it as an attribute
+      #within the game object.
+      df_json = df.to_json(orient="index")
+      game.json_info = df_json
+      game.save()
+
       #print(date for date in xDates)
       #print(xDates)
 
+      #used to chart the review information, and create hover blurbs for
+      #each trace.
       review_chart = px.scatter(data_frame=df,
                              x='xReviews',
                              y='y',
                              custom_data=['xAverage','xFresh','xRotten',
                                           'xDates','xMetascores','xIsCf',
-                                          'xNumMeta'],
-                             range_y=[0,100],
-                             title=game.name)
+                                          'xNumMeta','xDaysSinceRelease',
+                                          ],
+                             range_y=[0,103],
+                             title=game.name,)
       review_chart.update_layout(xaxis_title="Number of Reviews",
                               yaxis_title="Gameometer")
       review_chart.update_xaxes(dtick=10)
-      review_chart.add_traces(px.line(x=xReviews,
-                                         y=y,
-                                         title=game.name).data)
+      review_chart.update_yaxes(dtick=10)
+      review_chart.update_traces(mode="markers+lines", showlegend=True)
+      
+
       review_chart.update_traces(
          hovertemplate="<br>".join([
             "<b><u>Date:</u></b> %{customdata[3]}",
-            "Gameometer: %{customdata[5]}%{y}%",
+            "%{customdata[7]}",
+            "Gameometer: %{y}%",
             "Average Rating: %{customdata[0]}/10<br>",
             "<b>Total Reviews: %{x}</b>",
             "Fresh Reviews: %{customdata[1]}",
             "Rotten Reviews: %{customdata[2]}",
             "--------------",
-            "Metascore: %{customdata[4]} based on %{customdata[6]} reviews",
          ])
       )
+
+      #used to display the fresh/Certified/rotten symbols for each trace.
+      for x,y,jpg in zip(review_chart.data[0].x, review_chart.data[0].y, xIsCf):
+         review_chart.add_layout_image(
+            x=x,
+            y=y,
+            source=Image.open(jpg[0]),
+            xref="x",
+            yref="y",
+            sizex=4,
+            sizey=4,
+            xanchor="center",
+            yanchor="middle",
+         )
+
+      #used to chart the Top Critics information.
+      tc_review_chart = px.scatter(data_frame=df,
+                                   x=xReviews, 
+                                   y=tc_y, 
+                                   title=game.name,
+                                   custom_data=['xDates','xDaysSinceRelease',
+                                                'xIsCf', 'tc_y',
+                                                'tc_xReviews','tc_xAverage',
+                                                'tc_xFresh','tc_xRotten'])
+
+
+      tc_review_chart.update_traces(
+         hovertemplate="<br>".join([
+            "Top Gameometer: %{customdata[3]}%",
+            "Average Rating: %{customdata[5]}/10<br>",
+            "<b>Total Top Reviews: %{customdata[4]}</b>",
+            "Fresh Top Reviews: %{customdata[6]}",
+            "Rotten Top Reviews: %{customdata[7]}",
+            "--------------"
+         ]),
+         showlegend=True
+      )
+
+      #used to display the fresh/Certified/rotten symbols for each top critic trace.
+      """
+      for x,y,jpg in zip(tc_review_chart.data[0].x, tc_review_chart.data[0].y, x_tcIsCf):
+         tc_review_chart.add_layout_image(
+            x=x,
+            y=y,
+            source=Image.open(jpg[0]),
+            xref="x",
+            yref="y",
+            sizex=4,
+            sizey=4,
+            xanchor="center",
+            yanchor="middle",
+         )
+      """
+
+
+      #used to add the audience information to the graph.
+      audience_chart = px.scatter(data_frame=df,
+                                   x=xReviews, 
+                                   y=user_y, 
+                                   title=game.name,
+                                   custom_data=['xDates','xDaysSinceRelease',
+                                                'xUserScore','xUserRatings',
+                                                'user_y','xYayNay'],
+                                    )
+      audience_chart.update_traces(mode="markers+lines", showlegend=True)
+      
+      #used to display the yay/nay symbols for the user scores.
+      #used to display the fresh/Certified/rotten symbols for each trace.
+      for x,y,jpg in zip(audience_chart.data[0].x, audience_chart.data[0].y, xYayNay):
+         review_chart.add_layout_image(
+            x=x,
+            y=y,
+            source=Image.open(jpg[0]),
+            xref="x",
+            yref="y",
+            sizex=4,
+            sizey=4,
+            xanchor="center",
+            yanchor="middle",
+         )
+
+      audience_chart.update_traces(
+         hovertemplate="<br>".join([
+            "%{customdata[4]}% of users like this, based on %{customdata[3]} ratings.",
+            "Average Rating: %{customdata[2]}/100",
+            "--------------",
+         ]), showlegend=True
+      )
+      print(len(xMetascores),len(xReviews))
+      #used to chart the curved Metascore over time.
+      
+      meta_chart = px.scatter(data_frame=df,
+                                   x=xReviews, 
+                                   y=yMetascores, 
+                                   title=game.name,
+                                   custom_data=['xNumMeta','yMetascores',
+                                                'xMetascores'])
+                              
+      meta_chart.update_traces(
+         hovertemplate="<br>".join([
+            "Metascore: %{customdata[2]}",
+         ]), mode="markers+lines",
+           showlegend=True
+      )
+      """"""
+
+      #adds the top critics scatter graph to the overall graph.
+      #review_chart.add_traces(tc_review_chart.data)
+      #adds the audience scatter graph to the overall graph.
+  
+      #adds the metascores to the overall graph.
+      review_chart.add_traces(audience_chart.data + meta_chart.data)
+
+      review_chart.update_layout(hovermode="x unified")
+      
+         #print(x,y,jpg[0])
+
       review_chart_div:str = plot(review_chart,output_type="div")
 
       context = {
@@ -1329,6 +1587,98 @@ class DisplayGameScoreChartView(DetailView):
       }
       
       return context
+
+class DisplayGameRatingBreakdownView(DetailView):
+   '''
+   Used to display a chart breaking down the hidden-curve review ratings
+   given to a specific game on a scale from 0-10. Because many reviews aren't
+   0-10 whole numbers, the bars will be assigned percentages. For instance, if
+   a review gives a game a 9.5/10, the scores assigned will be a half-weighted
+   9/10, and a half-weighted 10/10.
+   '''
+   model = GameInfo 
+   template_name = 'newGameoMeter/rating_breakdown.html'
+   context_object_name = 'game'
+
+   def get_context_data(self, *arg,**kwargs):
+      context = super(DisplayGameRatingBreakdownView,self).get_context_data(*arg,**kwargs)
+      game = GameInfo.objects.filter(pk=self.kwargs['pk']).first()
+      get_pk = self.kwargs['pk']
+
+      reviews = ReviewInfo.objects.filter(id_number=game)
+      print("Beforehand there are ", len(reviews), " reviews.")
+
+         
+      if 'date-range-high' in self.request.GET:
+         check_filters = True
+         lastDate = self.request.GET['date-range-high']
+         if lastDate != '':
+            convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
+            print(convertedDate)
+            reviews = reviews.filter(date_published__lte=convertedDate)
+      
+      if 'date-range-low' in self.request.GET:
+         check_filters = True
+         lastDate = self.request.GET['date-range-low']
+         if lastDate != '':
+            convertedDate = datetime.strptime(lastDate,"%Y-%m-%d").date()
+            print(convertedDate)
+            reviews = reviews.filter(date_published__gte=convertedDate)
+
+      reviews = reviews.order_by('rating')
+      print("Now there are ", len(reviews), " reviews.")
+      
+
+
+      lowest_rating = reviews[0].rating
+      highest_rating = reviews[len(reviews)-1].rating
+      
+      #used to store the number of times each rating (or weighted set of
+      #ratings) appear within a game's reviews. Because the ratings are 
+      #weighted, every integer rating on the 0-10 scale will be assigned
+      # 10 points. (E.g. a 9.7 will count as 7 points to the 9/10, and 3 points
+      #to the 10/10.)
+
+      rating_dict = {
+         0:0, 1:0, 2:0, 3:0,
+         4:0, 5:0, 6:0, 7:0,
+         8:0, 9:0, 10:0,11:0,
+      }
+
+      for r in range(lowest_rating,highest_rating+1):
+         num_r = len(reviews.filter(Q(rating=r)))
+         if num_r > 0:
+            #print("OG RATING: ", r, "; BASE RATING: ", int(r/10), "; NUM. APPEARANCES: ", -1*int((float(r) % 10.0)-10), "; TRAILING: ", int(float(r) % 10.0) , )
+            rating_dict[int(r/10)+1] += int(float(r) % 10.0)
+            rating_dict[int(r/10)] += -1*int((float(r) % 10.0)-10)
+      
+      print(highest_rating)
+      print(lowest_rating)
+      print(rating_dict)
+      num_values = sum(rating_dict.values())
+      for key,value in rating_dict.items():
+         print(key, value/num_values)
+      
+      del rating_dict[11]
+      
+      df = pd.DataFrame({
+         'ratings': list(rating_dict.keys()),
+         'percentages': [float(number)/float(sum(rating_dict.values())) for number in rating_dict.values()],
+      })
+
+      rating_fig = px.bar(df, x="ratings", y="percentages")
+      rating_fig.update_xaxes(dtick=1)
+      rating_fig.update_traces(marker_line_color = 'green', marker_color = 'green', marker_line_width = 10)
+
+      rating_chart_div:str = plot(rating_fig,output_type="div")
+
+      context = {
+         'rating_fig': rating_chart_div,
+      }
+      
+
+      return context
+
 
 def display_graph():
    buffer = BytesIO()

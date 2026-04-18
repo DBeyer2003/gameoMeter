@@ -5,7 +5,7 @@
 {% block content %}
 
 
-<a href="{% url 'game_details' get_pk %}">Back to main page.</a>
+    <a href="{% url 'game_details' get_pk %}">Back to main page.</a>
 
     <form action="{% url 'score_chart' get_pk %}" method="get">
 
@@ -74,7 +74,45 @@
                     <input type="submit" value="Score Excluding Reviews Before Today">
                 </form> 
 
-                
+
+                AVERAGE RATING BREAKDOWNS:
+
+                <!--This is for all of the reviews starting from today.-->
+                <form id="filtered-main" action="{% url 'rating_breakdown' get_pk %}" method="get" target="_blank">
+
+                    {% for system in score_info.system_list %}
+                        <input type="hidden" id="console" name="console" value="{{system}}"> 
+                    {% endfor %}
+
+                    <input type="hidden" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
+                    
+                    <input type="submit" value="Overall Breakdown">
+                </form> 
+
+                <!--These are for the reviews EXCLUSIVELY added today.-->
+                <form id="filtered-main" action="{% url 'rating_breakdown' get_pk %}" method="get" target="_blank">
+
+                    {% for system in score_info.system_list %}
+                        <input type="hidden" id="console" name="console" value="{{system}}"> 
+                    {% endfor %}
+
+                    <input type="hidden" id="date-range-high" name="date-range-high" value="{{date|date:'Y-m-d'}}">
+                    <input type="hidden" id="date-range-low" name="date-range-low" value="{{date|date:'Y-m-d'}}">
+                    
+                    <input type="submit" value="Just Today's Ratings">
+                </form> 
+
+                <!--These are for the reviews added STARTING from today, and including each subsequent day.-->
+                <form id="filtered-main" action="{% url 'rating_breakdown' get_pk %}" method="get" target="_blank">
+
+                    {% for system in score_info.system_list %}
+                        <input type="hidden" id="console" name="console" value="{{system}}"> 
+                    {% endfor %}
+
+                    <input type="hidden" id="date-range-low" name="date-range-low" value="{{date|date:'Y-m-d'}}">
+                    
+                    <input type="submit" value="Ratings Starting From Today">
+                </form> 
 
                 
                     

@@ -302,6 +302,7 @@
         {% if total_reviews %}
             <div>
                 <a class="button" href="{% url 'score_chart' game.pk %}">SEE SCORE CHART</a>
+                <a class="button" href="{% url 'rating_breakdown' game.pk %}">SEE AVERAGE RATING BREAKDOWN</a>
             </div>
         {% endif %}
 

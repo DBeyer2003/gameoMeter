@@ -1,0 +1,18 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+
+{% block content %}
+
+    <form action="{% url 'tag_chart' get_pk %}" method="get">
+
+        
+        NUMBER OF REVIEWS:
+        <input type="fromSlider" id="num-reviews" name="num-reviews" min="0">
+
+        <input type="submit"><br>
+    </form>
+
+    {{review_chart|safe}}
+
+{% endblock %}
