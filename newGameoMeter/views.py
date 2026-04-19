@@ -948,13 +948,23 @@ class ShowTagChartView(DetailView):
 
       game_values = games.values()
 
-      #for game in games:
-      #   load_json = json.loads(game.json_info)
-      #   for info in load_json:
-      #      print(game.name, eval(info)[0],eval(info)[1])
-
-      if "num-reviews" in self.request.GET:
-         print("Banananana")
+      min_reviews = 12
+      for game in games:
+         load_json = json.loads(game.json_info)
+         #print(game.name, " JSON info looks like ", load_json)
+         print()
+         print()
+         print()
+         print()
+         #searches the JSON dictionary for each game to find the date
+         #with at least min_reviews number of reviews.
+         least_num_reviews = min(load_json.items(), key=lambda x: max(min_reviews-x[1]['xReviews'],0))
+         if least_num_reviews[1]['xReviews'] < min_reviews:
+            print("NOOOOOO (game is found)")
+         else:
+            print(game.name, least_num_reviews)
+         #for info, ofni in load_json.items():
+         #   print(game.name, eval(info)[0],eval(info)[1], ofni['y'])
 
 
       #used to chart the review information, and create hover blurbs for

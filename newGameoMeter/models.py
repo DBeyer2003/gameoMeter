@@ -453,7 +453,7 @@ class UserReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/sonic_unleashed_metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/sonic-boom-shattered-crystal-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -519,7 +519,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-unleashed-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-boom-shattered-crystal-extra.csv"
   # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -589,7 +589,7 @@ def load_user_scores():
   '''
 
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/-gamefaqs.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/sm64-ds-gamefaqs.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
