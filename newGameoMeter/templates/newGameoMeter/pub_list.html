@@ -1,0 +1,12 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+{% block content %}
+
+    <u>Publications:</u><br>
+
+    {% for publication in publications %}
+        <a href="{% url 'pub_info' publication.pk %}">{{publication.name}}</a> {{publication.pk}}<br>
+    {% endfor %}
+
+{% endblock %}

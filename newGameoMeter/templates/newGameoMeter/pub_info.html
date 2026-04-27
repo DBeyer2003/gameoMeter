@@ -1,0 +1,44 @@
+{% extends 'newGameoMeter/base.html' %}
+{% load static %}
+
+{% block content %}
+
+    {% for name in alt_names %}
+        {{name.name}}<br>
+    {% endfor %}
+    <br>
+
+    {% for review in pub_reviews %}
+        <b>{{review.id_number.name}}</b>
+        {% if review.id_number.cached_cf %}
+            <img src="{% static 'images/certified-fresh.png' %}" width="20px" height="20px">
+        {% elif review.id_number.cached_gm >= 60 %}
+            <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+        {% else %}
+            <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
+        {% endif %}
+
+        {{review.id_number.cached_gm}}%
+        <br>
+        <i style="color:rgb(41, 46, 50)">{{review.date_published}}</i><br>
+
+        {{review.quote}}<br>
+        {% if review.fresh_rotten == True %}
+            <img src="{% static 'images/fresh.png' %}" width="20px" height="20px">
+
+        {% else %}
+            <img src="{% static 'images/rotten.png' %}" width="20px" height="20px">
+            
+        {% endif %}
+        {% if review.display_score != "No Score" %}
+            {{review.display_score}}
+            <a href="{{review.url_link}}" target="_blank">Full Review</a>
+            <br>
+        {% else %}
+            <a href="{{review.url_link}}" target="_blank">Full Review</a>
+            <br>
+        {% endif %}
+        <br>
+    {% endfor%}
+
+{% endblock %}

@@ -59,6 +59,19 @@ class MetaBars(models.Model):
   def __str__(self):
     return f'The id number {self.id_number} has a list of metascores {self.score_list}.'
 
+class Publication(models.Model):
+  '''
+  Stores the information for individual publications, including any alternate
+  names used for the site.
+  '''
+  name = models.TextField(blank=False)
+  #used to determine whether or not the publication name is an alternate name
+  #for an existing publication, linked with a Foreign Key.
+  main_model = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
+
+  def __str__(self):
+    return f'The publication {self.name} is in the system.'
+
 class GameInfo(models.Model):
   '''
   Stores the Rawg Information for each game, as well as an ID that will be 
@@ -453,7 +466,7 @@ class UserReviewInfo(models.Model):
 
 def load_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/sonic-boom-shattered-crystal-metacritic.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/metacritic-folder/dmc2-metacritic.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -519,7 +532,7 @@ def load_reviews():
 
 def load_extra_reviews():
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/sonic-boom-shattered-crystal-extra.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/extra-folder/dmc2-extra.csv"
   # open the file for readinge
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -589,7 +602,7 @@ def load_user_scores():
   '''
 
   # open the file for reading one line at a time
-  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/sm64-ds-gamefaqs.csv"
+  filename = "/Users/DBeye/new_django_game/review_csvs/user-folder/sticker-star-gamefaqs.csv"
   # open the file for reading
   f = open(filename,encoding="utf8") 
   # discard the first line containing headers
@@ -933,3 +946,87 @@ def load_tags():
         """"""
     except:
       print(f"EXCEPTION OCCURED: {fields}.")
+
+
+def load_pubs():
+  """
+  Loads the main publication names.
+  """
+
+  filename = "/Users/DBeye/new_django_game/review_hub/publicationList.csv"
+  # open the file for readinge
+  f = open(filename) 
+  # discard the first line containing headers
+  headers = f.readline()
+
+  #checks to see if the publication name is the central
+  #name.
+  is_main = True
+  # go through the entire file one line at a time
+  for line in f:
+    try:
+      #split the CSV file into fields
+      fields = line.split(',')
+      
+      check_main = fields[1].strip("\n")
+
+      print("FIELDS LOOK LIKE: ", fields[0], fields[1])
+
+      if check_main == "N":
+        is_main = False
+      
+      new_pub = Publication(
+        name = fields[0],
+      )
+
+      print(new_pub.name, " is in 'da house.")
+      new_pub.save()
+
+    except:
+      print("EXCEPTION OCCURED FOR ", fields[0])
+
+  print("Done")
+
+
+def load_alt_pubs():
+  """
+  Loads the alternative publication names with pks for the main publications.
+  """
+
+  filename = "/Users/DBeye/new_django_game/review_hub/altPublicationList.csv"
+  # open the file for readinge
+  f = open(filename) 
+  # discard the first line containing headers
+  headers = f.readline()
+
+  #checks to see if the publication name is the central
+  #name.
+  is_main = True
+  # go through the entire file one line at a time
+  
+  for line in f:
+    try:
+      #split the CSV file into fields
+      
+      fields = line.split(',')
+
+      print("FIELDS LOOK LIKE: ", fields[0], fields[1])
+
+      find_pub = Publication.objects.filter(pk=int(fields[1])).first()
+
+      
+      new_pub = Publication(
+        name = fields[0],
+        main_model = find_pub,
+      )
+
+      print(new_pub.name, " is in 'da house.")
+      new_pub.save()
+      """"""
+
+    except:
+      print("EXCEPTION OCCURED FOR ", fields[0])
+
+
+
+  print("Done")

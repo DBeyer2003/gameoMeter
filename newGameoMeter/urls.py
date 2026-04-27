@@ -27,6 +27,10 @@ urlpatterns = [
   path(r'gameometer/tag/<int:pk>', views.ShowTagPageView.as_view(), name="tag_page"),
   #used to display the chart of tagged games over time.
   path(r'gameometer/tag/<int:pk>/tag_chart',views.ShowTagChartView.as_view(), name="tag_chart"),
+  #used to display the list of publications with profiles on the website.
+  path(r'gameometer/pub_list',views.ShowPublicationsListView.as_view(),name="pub_list"),
+  #used to display the information for an individual publication.
+  path(r'gameometer/pub_info/<int:pk>',views.ShowPublicationInfoView.as_view(),name="pub_info"),
 
   #authentication URLS
   path('login/', auth_views.LoginView.as_view(template_name='newGameoMeter/login.html'), name='login'),

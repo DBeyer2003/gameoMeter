@@ -97,6 +97,64 @@ def instant_search(request):
    
    return render(request,"newGameoMeter/instant_search.html", {"results": results})
 
+class ShowPublicationsListView(ListView):
+   '''
+   Displays every publication with a profile on the website.
+   '''
+   template_name = "newGameoMeter/pub_list.html"
+   model = Publication
+   context_object_name = "publications"
+   paginate_by = 100
+
+   def get_context_data(self, **kwargs):
+    '''
+    Provide context variables for use in template.
+    '''
+    # start with superclass context
+    context = super().get_context_data(**kwargs)
+
+    #the main publication names.
+    main_pubs = Publication.objects.filter(main_model__isnull=True)
+
+    context = {
+       "publications": main_pubs,
+    }
+
+    return context
+
+class ShowPublicationInfoView(DetailView):
+   '''
+   Display the information (alternate titles, games) for a 
+   specific publication.
+   '''
+   template_name = "newGameoMeter/pub_info.html"
+   model = Publication 
+   context_object_name = "publication"
+
+   def get_context_data(self, *arg,**kwargs):
+      context = super(ShowPublicationInfoView,self).get_context_data(*arg,**kwargs)
+
+      alt_pubs = Publication.objects.filter(main_model=self.kwargs['pk'])
+      myself = Publication.objects.filter(pk=self.kwargs['pk']).first()
+      query_search = Q()
+
+
+      query_search &= Q(publication__iexact=myself.name)
+      for pub in alt_pubs:
+         query_search &= Q(publication__iexact=pub.name)
+      
+      print(query_search)
+
+      pub_reviews = ReviewInfo.objects.filter(query_search).order_by("-date_published")
+
+      print("Number of reviews is ", len(pub_reviews))
+      context = {
+         "alt_names": alt_pubs,
+         "pub_reviews": pub_reviews,
+      }
+
+      return context
+
 
 #used to determine if game between 70-74% in search results is Certified Fresh or
 #not, based on patterns in which reviews were added.
@@ -948,23 +1006,24 @@ class ShowTagChartView(DetailView):
 
       game_values = games.values()
 
-      min_reviews = 12
-      for game in games:
-         load_json = json.loads(game.json_info)
-         #print(game.name, " JSON info looks like ", load_json)
-         print()
-         print()
-         print()
-         print()
-         #searches the JSON dictionary for each game to find the date
-         #with at least min_reviews number of reviews.
-         least_num_reviews = min(load_json.items(), key=lambda x: max(min_reviews-x[1]['xReviews'],0))
-         if least_num_reviews[1]['xReviews'] < min_reviews:
-            print("NOOOOOO (game is found)")
-         else:
-            print(game.name, least_num_reviews)
-         #for info, ofni in load_json.items():
-         #   print(game.name, eval(info)[0],eval(info)[1], ofni['y'])
+      if "num-reviews" in self.request.GET:
+         min_reviews = int(self.request.GET["num-reviews"])
+         for game in games:
+            load_json = json.loads(game.json_info)
+            #print(game.name, " JSON info looks like ", load_json)
+            print()
+            print()
+            print()
+            print()
+            #searches the JSON dictionary for each game to find the date
+            #with at least min_reviews number of reviews.
+            least_num_reviews = min(load_json.items(), key=lambda x: max(min_reviews-x[1]['xReviews'],0))
+            if least_num_reviews[1]['xReviews'] < min_reviews:
+               print("NOOOOOO (game is found)")
+            else:
+               print(game.name, least_num_reviews)
+            #for info, ofni in load_json.items():
+            #   print(game.name, eval(info)[0],eval(info)[1], ofni['y'])
 
 
       #used to chart the review information, and create hover blurbs for
